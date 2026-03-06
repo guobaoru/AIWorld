@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>记账应用 - AIWorld</title>
+    <link rel="stylesheet" href="./style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="accounting-container">
+        <header class="accounting-header">
+            <button class="back-btn" onclick="location.href='./index.html'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                返回
+            </button>
+            <h1>记账应用</h1>
+        </header>
+
+        <div class="balance-summary">
+            <div class="balance-card income">
+                <p class="balance-label">收入</p>
+                <p class="balance-amount" id="totalIncome">¥0.00</p>
+            </div>
+            <div class="balance-card expense">
+                <p class="balance-label">支出</p>
+                <p class="balance-amount" id="totalExpense">¥0.00</p>
+            </div>
+            <div class="balance-card net">
+                <p class="balance-label">结余</p>
+                <p class="balance-amount" id="netBalance">¥0.00</p>
+            </div>
+        </div>
+
+        <div class="add-record-section">
+            <h2>添加记录</h2>
+            <form id="recordForm" class="record-form">
+                <div class="form-group">
+                    <label>类型</label>
+                    <div class="type-toggle">
+                        <button type="button" class="type-btn active" data-type="expense">支出</button>
+                        <button type="button" class="type-btn" data-type="income">收入</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="amount">金额</label>
+                    <input type="number" id="amount" step="0.01" min="0" placeholder="请输入金额" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="category">分类</label>
+                    <select id="category" required>
+                        <option value="">请选择分类</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">备注</label>
+                    <input type="text" id="description" placeholder="添加备注（可选）">
+                </div>
+
+                <div class="form-group">
+                    <label for="date">日期</label>
+                    <input type="date" id="date" required>
+                </div>
+
+                <button type="submit" class="submit-btn">添加记录</button>
+            </form>
+        </div>
+
+        <div class="records-section">
+            <h2>记录列表</h2>
+            <div class="records-list" id="recordsList">
+                <p class="empty-message">暂无记录</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="./accounting.js"></script>
+</body>
+</html>
