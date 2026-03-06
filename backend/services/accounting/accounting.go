@@ -1,10 +1,12 @@
-package main
+package accounting
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -23,14 +25,22 @@ var (
 	records     []AccountingRecord
 	recordsLock sync.Mutex
 	nextID      int64 = 1
-	dataFile          = "accounting_data.json"
 )
 
-func loadRecords() error {
+func getProjectRoot() string {
+	_, filename, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(filename), "../../..")
+}
+
+func getDataFilePath() string {
+	return filepath.Join(getProjectRoot(), "accounting_data.json")
+}
+
+func LoadRecords() error {
 	recordsLock.Lock()
 	defer recordsLock.Unlock()
 
-	data, err := os.ReadFile(dataFile)
+	data, err := os.ReadFile(getDataFilePath())
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -78,47 +88,16 @@ func saveRecords() error {
 		return err
 	}
 
-	return os.WriteFile(dataFile, data, 0644)
+	return os.WriteFile(getDataFilePath(), data, 0644)
 }
 
-func corsMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	}
-}
-
-func Ping(c *gin.Context) {
-	c.JSON(200, gin.H{
-		"message": "pong",
-	})
-}
-
-func HelloWorld(c *gin.Context) {
-	name := c.Query("name")
-	if name == "" {
-		name = "世界"
-	}
-	c.JSON(200, gin.H{
-		"message": "你好，" + name + "，我已连接",
-	})
-}
-
-func getAccountingRecords(c *gin.Context) {
+func GetAccountingRecords(c *gin.Context) {
 	recordsLock.Lock()
 	defer recordsLock.Unlock()
 	c.JSON(http.StatusOK, records)
 }
 
-func addAccountingRecord(c *gin.Context) {
+func AddAccountingRecord(c *gin.Context) {
 	var record AccountingRecord
 	if err := c.ShouldBindJSON(&record); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -138,7 +117,7 @@ func addAccountingRecord(c *gin.Context) {
 	c.JSON(http.StatusCreated, record)
 }
 
-func deleteAccountingRecord(c *gin.Context) {
+func DeleteAccountingRecord(c *gin.Context) {
 	id := c.Param("id")
 	var recordID int64
 	_, err := fmt.Sscanf(id, "%d", &recordID)
@@ -170,26 +149,8 @@ func deleteAccountingRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "record deleted"})
 }
 
-func main() {
-	if err := loadRecords(); err != nil {
-		fmt.Printf("Error loading records: %v\n", err)
-	}
-
-	r := gin.Default()
-
-	r.Use(corsMiddleware())
-
-	r.GET("/ping", Ping)
-	r.GET("/helloWorld", HelloWorld)
-
-	r.GET("/api/accounting/records", getAccountingRecords)
-	r.POST("/api/accounting/records", addAccountingRecord)
-	r.DELETE("/api/accounting/records/:id", deleteAccountingRecord)
-
-	r.NoRoute(func(c *gin.Context) {
-		c.File("./frontend/public" + c.Request.URL.Path)
-	})
-
-	fmt.Println("Server starting on :8080")
-	r.Run(":8080")
+func RegisterRoutes(r *gin.Engine) {
+	r.GET("/api/accounting/records", GetAccountingRecords)
+	r.POST("/api/accounting/records", AddAccountingRecord)
+	r.DELETE("/api/accounting/records/:id", DeleteAccountingRecord)
 }
