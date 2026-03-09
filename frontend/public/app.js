@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startParticleAnimation();
 
         try {
-            await fetch(`${API_BASE_URL}/ping`);
+            await fetch(`${API_BASE_URL}/api/ping`);
             
             setTimeout(() => {
                 stopParticleAnimation();

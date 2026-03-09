@@ -945,3 +945,34 @@ body {
     background: rgba(0, 100, 60, 0.2);
     border: 1px solid rgba(0, 100, 60, 0.4);
 }
+
+/* Floating Home Button */
+.floating-home-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 20, 10, 0.6);
+    border: 1px solid rgba(0, 100, 60, 0.5);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #00ff88;
+    text-decoration: none;
+    box-shadow: 0 0 10px rgba(0, 100, 60, 0.2);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.floating-home-btn:hover {
+    background: rgba(0, 100, 60, 0.3);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+    transform: scale(1.1);
+}
+
+.floating-home-btn svg {
+    width: 20px;
+    height: 20px;
+}

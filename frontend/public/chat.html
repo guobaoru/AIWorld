@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Hub - 实时聊天室</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .chat-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: rgba(0, 20, 10, 0.8);
+            border: 1px solid rgba(0, 100, 60, 0.3);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            height: 70vh;
+            box-shadow: 0 0 30px rgba(0, 100, 60, 0.2);
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.5;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+            word-wrap: break-word;
+        }
+
+        .message.ai {
+            align-self: flex-start;
+            background: rgba(0, 100, 60, 0.2);
+            border: 1px solid rgba(0, 100, 60, 0.4);
+            color: #E5E4E2;
+            border-top-left-radius: 2px;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: rgba(0, 173, 216, 0.2);
+            border: 1px solid rgba(0, 173, 216, 0.4);
+            color: #fff;
+            border-top-right-radius: 2px;
+        }
+        
+        /* Distinction for my own messages vs others would require user ID logic, 
+           for now we just align all non-AI messages to right or left? 
+           Let's align all user messages to right for simplicity, or left for others.
+           Without auth, we don't know who is who. 
+           Let's just align all non-AI messages to the right for now (self) style. 
+        */
+
+        .message-input-area {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-top: 1px solid rgba(0, 100, 60, 0.3);
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: rgba(0, 20, 10, 0.6);
+            border: 1px solid rgba(0, 100, 60, 0.5);
+            color: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 1rem;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+        }
+
+        .system-msg {
+            text-align: center;
+            color: #666;
+            font-size: 0.8rem;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="floating-home-btn" title="返回首页">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+        </a>
+        <header>
+            <h1>AI World Hub</h1>
+        </header>
+
+        <div class="chat-container">
+            <div id="chatMessages" class="chat-messages">
+                <div class="system-msg">连接中...</div>
+            </div>
+            <div class="message-input-area">
+                <input type="text" id="chatInput" class="chat-input" placeholder="输入消息... (@ai 呼叫智能助手)" autocomplete="off">
+                <button id="sendBtn" class="btn btn-primary">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+        let ws;
+
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/api/chat/ws`);
+
+            ws.onopen = () => {
+                chatMessages.innerHTML = '';
+                addSystemMessage('已连接到 AI World Hub');
+                addSystemMessage('提示：发送包含 "@ai" 的消息可唤醒智能助手');
+            };
+
+            ws.onmessage = (event) => {
+                const msg = event.data;
+                // Simple heuristic
+                if (msg.startsWith('🤖 AI:')) {
+                    addMessage(msg, 'ai');
+                } else {
+                    // Ideally we should distinguish self vs others, but without ID...
+                    // For now, let's just show all user messages as 'user' style
+                    addMessage(msg, 'user');
+                }
+            };
+
+            ws.onclose = () => {
+                addSystemMessage('连接断开，3秒后重连...');
+                setTimeout(connect, 3000);
+            };
+        }
+
+        function addMessage(text, type) {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.textContent = text;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addSystemMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'system-msg';
+            div.textContent = text;
+            chatMessages.appendChild(div);
+        }
+
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if (text && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(text);
+                chatInput.value = '';
+                // Note: we don't addMessage here because the server broadcasts it back
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        connect();
+    </script>
+</body>
+</html>

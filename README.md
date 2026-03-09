@@ -3,6 +3,8 @@
 ![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES6-F7DF1E?logo=javascript)
 ![Gin](https://img.shields.io/badge/Framework-Gin-00ADD8)
+![GORM](https://img.shields.io/badge/ORM-GORM-CQ3930)
+![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite)
 ![Docker](https://img.shields.io/badge/Docker-Supported-2496ED?logo=docker)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
@@ -21,31 +23,36 @@ AI World 不仅仅是一个代码仓库，它是 AI 辅助编程（AI-Assisted P
 
 目前，AI World 包含以下功能模块：
 
+- **� AI Hub (聊天室)**: (v0.3.0 新增)
+  - **实时互动**: 基于 WebSocket 的多人在线聊天室。
+  - **智能助手**: 内置规则引擎 AI 机器人，可回答基础问题（尝试发送 `@ai hello`）。
+
+- **💰 记账应用 (Accounting App)**
+  - **全栈实现**: 前端 Vue/Vanilla JS + 后端 Go API。
+  - **数据库支持**: (v0.3.0 新增) 迁移至 SQLite + GORM，数据更安全、更高效。
+  - **统计分析**: 实时计算总收入、总支出和结余。
+  - **📊 数据可视化**: 动态生成收支结构饼图，一目了然。
+  - **🤖 AI 财务顾问**: 智能分析财务状况，提供省钱建议。
+
+- **🐍 贪吃蛇 (Snake Game)**
+  - **经典重现**: HTML5 Canvas 实现流畅的游戏体验。
+  - **全球排行榜**: 实时更新的在线高分榜，数据持久化到数据库。
+  - **🤖 AI 自动演示**: (v0.4.0 新增) 内置智能 AI 玩家，使用 BFS 空间搜索和贪心算法自动演示游戏玩法。
+
 - **🚀 基础服务**
   - **Ping / HelloWorld**: 简单的 API 接口，用于测试服务连通性。
   - **静态资源托管**: 高效的前端资源服务。
 
-- **💰 记账应用 (Accounting App)**
-  - **全栈实现**: 前端 Vue/Vanilla JS + 后端 Go API。
-  - **数据持久化**: 自动保存每一笔收支记录。
-  - **统计分析**: 实时计算总收入、总支出和结余。
-  - **📊 数据可视化**: (v0.2.0 新增) 动态生成收支结构饼图，一目了然。
-  - **🤖 AI 财务顾问**: (v0.2.0 新增) 智能分析财务状况，提供省钱建议。
-
-- **🐍 贪吃蛇 (Snake Game)**
-  - **经典重现**: HTML5 Canvas 实现流畅的游戏体验。
-  - **全球排行榜**: 实时更新的在线高分榜，展示全球玩家实力。
-
 - **🐳 工程化 (Engineering)**
-  - **Docker 支持**: (v0.2.0 新增) 提供标准 Dockerfile 和 Docker Compose 配置。
+  - **Docker 支持**: 提供标准 Dockerfile 和 Docker Compose 配置。
   - **模块化架构**: 清晰的后端服务分层设计。
 
 ## 🛠 技术栈 (Tech Stack)
 
-- **Backend**: Go (Golang) 1.24, Gin Web Framework
+- **Backend**: Go (Golang) 1.24, Gin Web Framework, Gorilla WebSocket
+- **Database**: SQLite, GORM
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript (ES6+), Chart.js
 - **Infrastructure**: Docker, Docker Compose
-- **Storage**: JSON File System (轻量级数据存储)
 - **AI Engine**: Gemini-3-Pro-Preview
 
 ## 🚀 快速开始 (Quick Start)
@@ -80,14 +87,15 @@ aiworld/
 │   ├── cmd/                # 应用程序入口
 │   │   └── aiworld/
 │   ├── pkg/                # 公共包
+│   │   ├── database/       # 数据库连接
 │   │   └── utils/          # 工具函数
 │   └── services/           # 业务逻辑层
 │       ├── accounting/     # 记账服务
+│       ├── chat/           # 聊天室服务
 │       └── snake/          # 贪吃蛇服务
 ├── frontend/               # 前端代码
 │   └── public/             # 静态资源 (HTML/JS/CSS)
-├── accounting_data.json    # 记账数据
-├── snake_scores.json       # 贪吃蛇排行榜数据
+├── aiworld.db              # SQLite 数据库文件
 ├── Dockerfile              # Docker 构建文件
 └── docker-compose.yml      # Docker 编排文件
 ```

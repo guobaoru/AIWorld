@@ -1,20 +1,17 @@
 package accounting
 
 import (
-	"aiworld/backend/pkg/utils"
-	"encoding/json"
-	"fmt"
+	"aiworld/backend/pkg/database"
 	"net/http"
-	"os"
-	"sync"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // AccountingRecord represents a single transaction entry in the accounting system.
-// It can be either an income or an expense.
+// It uses GORM model for database mapping.
 type AccountingRecord struct {
-	ID          int64   `json:"id"`
+	gorm.Model
 	Type        string  `json:"type"`        // "income" or "expense"
 	Amount      float64 `json:"amount"`      // The monetary value
 	Category    string  `json:"category"`    // e.g., "Food", "Salary"
@@ -22,78 +19,19 @@ type AccountingRecord struct {
 	Date        string  `json:"date"`        // YYYY-MM-DD format
 }
 
-var (
-	records     []AccountingRecord
-	recordsLock sync.Mutex     // Protects concurrent access to records slice
-	nextID      int64      = 1 // Auto-incrementing ID counter
-)
-
-// LoadRecords reads accounting data from the JSON file into memory.
-// It is typically called when the application starts.
-func LoadRecords() error {
-	recordsLock.Lock()
-	defer recordsLock.Unlock()
-
-	data, err := os.ReadFile(utils.GetDataFilePath("accounting_data.json"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			// It's okay if file doesn't exist yet, we'll create it on save
-			return nil
-		}
-		return err
-	}
-
-	var savedData struct {
-		Records []AccountingRecord `json:"records"`
-		NextID  int64              `json:"next_id"`
-	}
-
-	if err := json.Unmarshal(data, &savedData); err != nil {
-		return err
-	}
-
-	records = savedData.Records
-	nextID = savedData.NextID
-
-	// Ensure nextID is valid if file was manually edited or corrupted
-	if nextID == 0 {
-		nextID = 1
-		for _, r := range records {
-			if r.ID >= nextID {
-				nextID = r.ID + 1
-			}
-		}
-	}
-
-	return nil
-}
-
-// saveRecords writes the current in-memory records to the JSON file.
-// It should be called whenever records are modified.
-func saveRecords() error {
-	recordsLock.Lock()
-	defer recordsLock.Unlock()
-
-	savedData := struct {
-		Records []AccountingRecord `json:"records"`
-		NextID  int64              `json:"next_id"`
-	}{
-		Records: records,
-		NextID:  nextID,
-	}
-
-	data, err := json.MarshalIndent(savedData, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(utils.GetDataFilePath("accounting_data.json"), data, 0644)
+// Init initializes the accounting module, including database migration.
+func Init() {
+	database.GetDB().AutoMigrate(&AccountingRecord{})
 }
 
 // GetAccountingRecords handles GET requests to retrieve all transaction records.
 func GetAccountingRecords(c *gin.Context) {
-	recordsLock.Lock()
-	defer recordsLock.Unlock()
+	var records []AccountingRecord
+	// Order by date descending by default
+	if err := database.GetDB().Order("date desc").Find(&records).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch records"})
+		return
+	}
 	c.JSON(http.StatusOK, records)
 }
 
@@ -105,14 +43,9 @@ func AddAccountingRecord(c *gin.Context) {
 		return
 	}
 
-	recordsLock.Lock()
-	record.ID = nextID
-	nextID++
-	records = append(records, record)
-	recordsLock.Unlock()
-
-	if err := saveRecords(); err != nil {
-		fmt.Printf("Error saving records: %v\n", err)
+	if err := database.GetDB().Create(&record).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save record"})
+		return
 	}
 
 	c.JSON(http.StatusCreated, record)
@@ -121,31 +54,10 @@ func AddAccountingRecord(c *gin.Context) {
 // DeleteAccountingRecord handles DELETE requests to remove a record by ID.
 func DeleteAccountingRecord(c *gin.Context) {
 	id := c.Param("id")
-	var recordID int64
-	_, err := fmt.Sscanf(id, "%d", &recordID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+	// Unscoped() allows permanent deletion, or remove it for soft delete
+	if err := database.GetDB().Delete(&AccountingRecord{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete record"})
 		return
-	}
-
-	recordsLock.Lock()
-	found := false
-	for i, r := range records {
-		if r.ID == recordID {
-			records = append(records[:i], records[i+1:]...)
-			found = true
-			break
-		}
-	}
-	recordsLock.Unlock()
-
-	if !found {
-		c.JSON(http.StatusNotFound, gin.H{"error": "record not found"})
-		return
-	}
-
-	if err := saveRecords(); err != nil {
-		fmt.Printf("Error saving records: %v\n", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "record deleted"})
