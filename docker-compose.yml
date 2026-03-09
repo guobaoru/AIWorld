@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  aiworld:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount data files for persistence
+      - ./accounting_data.json:/app/accounting_data.json
+      - ./snake_scores.json:/app/snake_scores.json
+    restart: unless-stopped

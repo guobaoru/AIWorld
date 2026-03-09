@@ -30,6 +30,8 @@
                     <span class="score-value" id="highScore">0</span>
                 </div>
             </div>
+            
+            <button id="viewLeaderboardBtn" class="btn view-leaderboard-btn" style="margin-bottom: 20px;">查看全球排行榜</button>
 
             <div class="canvas-wrapper">
                 <canvas id="gameCanvas"></canvas>
@@ -52,6 +54,27 @@
                     <button class="control-btn" data-direction="right">→</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="leaderboardModal" class="leaderboard-modal">
+        <div class="leaderboard-content">
+            <div class="leaderboard-header">
+                <h2>全球排行榜</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            
+            <div id="submitScoreSection" class="submit-score-section">
+                <h3>🎉 新高分！</h3>
+                <div class="submit-input-group">
+                    <input type="text" id="playerName" class="input-field" placeholder="输入你的名字" maxlength="10">
+                    <button id="submitScoreBtn" class="btn btn-primary">提交</button>
+                </div>
+            </div>
+
+            <ul id="leaderboardList" class="leaderboard-list">
+                <!-- 动态生成 -->
+            </ul>
         </div>
     </div>
 

@@ -806,3 +806,142 @@ body {
         font-size: 1.2rem;
     }
 }
+
+/* Leaderboard Styles */
+.leaderboard-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.leaderboard-modal.show {
+    display: flex;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.leaderboard-content {
+    background: linear-gradient(135deg, rgba(0, 20, 10, 0.95), rgba(0, 40, 20, 0.95));
+    border: 1px solid rgba(0, 100, 60, 0.5);
+    border-radius: 16px;
+    padding: 30px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 0 50px rgba(0, 100, 60, 0.3);
+    position: relative;
+}
+
+.leaderboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(0, 100, 60, 0.3);
+    padding-bottom: 15px;
+}
+
+.leaderboard-header h2 {
+    font-family: 'Orbitron', sans-serif;
+    color: #00ff88;
+    margin: 0;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.close-modal:hover {
+    color: #fff;
+}
+
+.leaderboard-list {
+    list-style: none;
+    padding: 0;
+}
+
+.leaderboard-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 15px;
+    border-bottom: 1px solid rgba(0, 100, 60, 0.1);
+    transition: background 0.2s;
+}
+
+.leaderboard-item:nth-child(1) { color: #FFD700; }
+.leaderboard-item:nth-child(2) { color: #C0C0C0; }
+.leaderboard-item:nth-child(3) { color: #CD7F32; }
+
+.leaderboard-item:hover {
+    background: rgba(0, 100, 60, 0.1);
+}
+
+.rank-name {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.rank {
+    width: 25px;
+    text-align: right;
+    color: #666;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.player-name {
+    font-weight: 500;
+}
+
+.player-score {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: bold;
+}
+
+.submit-score-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(0, 100, 60, 0.3);
+    text-align: center;
+    display: none;
+}
+
+.submit-score-section.show {
+    display: block;
+}
+
+.submit-score-section h3 {
+    color: #E5E4E2;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.submit-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.view-leaderboard-btn {
+    margin-top: 15px;
+    width: 100%;
+    background: rgba(0, 100, 60, 0.2);
+    border: 1px solid rgba(0, 100, 60, 0.4);
+}

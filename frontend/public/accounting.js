@@ -7,6 +7,7 @@ const categories = {
 
 let currentType = 'expense';
 let records = [];
+let expenseChart = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeDate();
@@ -85,8 +86,7 @@ function addRecordLocally(record) {
     record.id = Date.now();
     records.push(record);
     saveRecordsToLocal();
-    renderRecords();
-    updateBalance();
+    refreshUI();
     document.getElementById('recordForm').reset();
     initializeDate();
 }
@@ -103,8 +103,7 @@ async function loadRecords() {
         console.error('Error loading records:', error);
         loadRecordsFromLocal();
     }
-    renderRecords();
-    updateBalance();
+    refreshUI();
 }
 
 function loadRecordsFromLocal() {
@@ -131,8 +130,14 @@ async function deleteRecord(id) {
 
     records = records.filter(r => r.id !== id);
     saveRecordsToLocal();
+    refreshUI();
+}
+
+function refreshUI() {
     renderRecords();
     updateBalance();
+    renderChart();
+    generateAIAdvice();
 }
 
 function renderRecords() {
@@ -176,4 +181,114 @@ function updateBalance() {
     document.getElementById('totalIncome').textContent = `¥${totalIncome.toFixed(2)}`;
     document.getElementById('totalExpense').textContent = `¥${totalExpense.toFixed(2)}`;
     document.getElementById('netBalance').textContent = `¥${netBalance.toFixed(2)}`;
+}
+
+function renderChart() {
+    const canvas = document.getElementById('expenseChart');
+    if (!canvas) return; // Guard clause if element doesn't exist
+
+    const ctx = canvas.getContext('2d');
+    
+    // Aggregate expenses by category
+    const expenses = records.filter(r => r.type === 'expense');
+    const categoryTotals = {};
+    expenses.forEach(r => {
+        categoryTotals[r.category] = (categoryTotals[r.category] || 0) + r.amount;
+    });
+
+    const labels = Object.keys(categoryTotals);
+    const data = Object.values(categoryTotals);
+
+    if (expenseChart) {
+        expenseChart.destroy();
+    }
+
+    if (data.length === 0) {
+        // Clear canvas if no data
+        return;
+    }
+
+    expenseChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#E7E9ED', '#71B37C'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { color: '#ccc', font: { family: "'Noto Sans SC', sans-serif" } }
+                }
+            }
+        }
+    });
+}
+
+function generateAIAdvice() {
+    const adviceElement = document.getElementById('aiAdvice');
+    if (!adviceElement) return;
+
+    const expenses = records.filter(r => r.type === 'expense');
+    const income = records.filter(r => r.type === 'income');
+    
+    const totalExpense = expenses.reduce((sum, r) => sum + r.amount, 0);
+    const totalIncome = income.reduce((sum, r) => sum + r.amount, 0);
+    
+    if (records.length === 0) {
+        adviceElement.innerHTML = "您还没有任何记录。试着记下一笔账，我会为您提供财务建议！";
+        return;
+    }
+
+    let advice = [];
+    
+    // Rule 1: Income vs Expense
+    if (totalIncome > 0) {
+        if (totalExpense > totalIncome) {
+            advice.push("⚠️ **警告**：您的支出已超过收入！建议立即检查非必要开支，避免负债。");
+        } else if (totalExpense > totalIncome * 0.8) {
+            advice.push("⚠️ **注意**：您的支出已占收入的 80% 以上，储蓄空间较小。建议将支出控制在收入的 70% 以内。");
+        } else {
+            advice.push("✅ **太棒了**：您的财务状况良好，有健康的储蓄率。");
+        }
+    } else if (totalExpense > 0) {
+        advice.push("⚠️ **提示**：您只有支出没有收入记录。请记得记录收入以便进行收支平衡分析。");
+    }
+
+    // Rule 2: Top Expense Category
+    const categoryTotals = {};
+    expenses.forEach(r => {
+        categoryTotals[r.category] = (categoryTotals[r.category] || 0) + r.amount;
+    });
+    
+    let maxCategory = '';
+    let maxAmount = 0;
+    for (const [cat, amount] of Object.entries(categoryTotals)) {
+        if (amount > maxAmount) {
+            maxAmount = amount;
+            maxCategory = cat;
+        }
+    }
+
+    if (maxCategory) {
+        const percent = totalExpense > 0 ? ((maxAmount / totalExpense) * 100).toFixed(1) : 0;
+        advice.push(`📊 **分析**：您最大的支出项是 **${maxCategory}**，占比 **${percent}%**。`);
+        
+        if (maxCategory === '餐饮' && percent > 30) {
+            advice.push("💡 **建议**：餐饮开销较大。尝试每周多做几次饭，既健康又省钱！");
+        } else if (maxCategory === '购物' && percent > 30) {
+            advice.push("💡 **建议**：购物支出较高。建议采用“30天冷静期”法则，避免冲动消费。");
+        } else if (maxCategory === '娱乐' && percent > 20) {
+            advice.push("💡 **建议**：娱乐开销不低。可以寻找一些免费或低成本的休闲方式，如公园散步、阅读等。");
+        }
+    }
+
+    adviceElement.innerHTML = advice.map(item => `<p style="margin-bottom: 10px;">${item}</p>`).join('');
 }

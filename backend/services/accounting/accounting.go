@@ -1,48 +1,43 @@
 package accounting
 
 import (
+	"aiworld/backend/pkg/utils"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
-	"runtime"
 	"sync"
 
 	"github.com/gin-gonic/gin"
 )
 
+// AccountingRecord represents a single transaction entry in the accounting system.
+// It can be either an income or an expense.
 type AccountingRecord struct {
 	ID          int64   `json:"id"`
-	Type        string  `json:"type"`
-	Amount      float64 `json:"amount"`
-	Category    string  `json:"category"`
-	Description string  `json:"description"`
-	Date        string  `json:"date"`
+	Type        string  `json:"type"`        // "income" or "expense"
+	Amount      float64 `json:"amount"`      // The monetary value
+	Category    string  `json:"category"`    // e.g., "Food", "Salary"
+	Description string  `json:"description"` // Optional note
+	Date        string  `json:"date"`        // YYYY-MM-DD format
 }
 
 var (
 	records     []AccountingRecord
-	recordsLock sync.Mutex
-	nextID      int64 = 1
+	recordsLock sync.Mutex     // Protects concurrent access to records slice
+	nextID      int64      = 1 // Auto-incrementing ID counter
 )
 
-func getProjectRoot() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(filename), "../../..")
-}
-
-func getDataFilePath() string {
-	return filepath.Join(getProjectRoot(), "accounting_data.json")
-}
-
+// LoadRecords reads accounting data from the JSON file into memory.
+// It is typically called when the application starts.
 func LoadRecords() error {
 	recordsLock.Lock()
 	defer recordsLock.Unlock()
 
-	data, err := os.ReadFile(getDataFilePath())
+	data, err := os.ReadFile(utils.GetDataFilePath("accounting_data.json"))
 	if err != nil {
 		if os.IsNotExist(err) {
+			// It's okay if file doesn't exist yet, we'll create it on save
 			return nil
 		}
 		return err
@@ -59,6 +54,8 @@ func LoadRecords() error {
 
 	records = savedData.Records
 	nextID = savedData.NextID
+
+	// Ensure nextID is valid if file was manually edited or corrupted
 	if nextID == 0 {
 		nextID = 1
 		for _, r := range records {
@@ -71,6 +68,8 @@ func LoadRecords() error {
 	return nil
 }
 
+// saveRecords writes the current in-memory records to the JSON file.
+// It should be called whenever records are modified.
 func saveRecords() error {
 	recordsLock.Lock()
 	defer recordsLock.Unlock()
@@ -88,15 +87,17 @@ func saveRecords() error {
 		return err
 	}
 
-	return os.WriteFile(getDataFilePath(), data, 0644)
+	return os.WriteFile(utils.GetDataFilePath("accounting_data.json"), data, 0644)
 }
 
+// GetAccountingRecords handles GET requests to retrieve all transaction records.
 func GetAccountingRecords(c *gin.Context) {
 	recordsLock.Lock()
 	defer recordsLock.Unlock()
 	c.JSON(http.StatusOK, records)
 }
 
+// AddAccountingRecord handles POST requests to create a new transaction record.
 func AddAccountingRecord(c *gin.Context) {
 	var record AccountingRecord
 	if err := c.ShouldBindJSON(&record); err != nil {
@@ -117,6 +118,7 @@ func AddAccountingRecord(c *gin.Context) {
 	c.JSON(http.StatusCreated, record)
 }
 
+// DeleteAccountingRecord handles DELETE requests to remove a record by ID.
 func DeleteAccountingRecord(c *gin.Context) {
 	id := c.Param("id")
 	var recordID int64
@@ -149,6 +151,7 @@ func DeleteAccountingRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "record deleted"})
 }
 
+// RegisterRoutes sets up the API endpoints for the accounting service.
 func RegisterRoutes(r *gin.Engine) {
 	r.GET("/api/accounting/records", GetAccountingRecords)
 	r.POST("/api/accounting/records", AddAccountingRecord)

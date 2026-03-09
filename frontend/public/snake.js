@@ -199,6 +199,16 @@ function gameOver() {
     overlayMessage.textContent = `最终得分：${score}`;
     startBtn.textContent = '重新开始';
     gameOverlay.style.display = 'flex';
+
+    // Auto show leaderboard if score > 0
+    if (score > 0) {
+        setTimeout(() => {
+            leaderboardModal.classList.add('show');
+            submitScoreSection.style.display = 'block';
+            playerNameInput.focus();
+            fetchLeaderboard();
+        }, 500);
+    }
 }
 
 function startGame() {
@@ -287,3 +297,132 @@ document.querySelectorAll('.control-btn').forEach(btn => {
 startBtn.addEventListener('click', startGame);
 
 drawGame();
+
+// --- Leaderboard Logic ---
+const leaderboardModal = document.getElementById('leaderboardModal');
+const viewLeaderboardBtn = document.getElementById('viewLeaderboardBtn');
+const closeModalBtn = document.querySelector('.close-modal');
+const leaderboardList = document.getElementById('leaderboardList');
+const submitScoreSection = document.getElementById('submitScoreSection');
+const submitScoreBtn = document.getElementById('submitScoreBtn');
+const playerNameInput = document.getElementById('playerName');
+
+async function fetchLeaderboard() {
+    try {
+        const response = await fetch('/api/snake/leaderboard');
+        if (!response.ok) throw new Error('Failed to fetch leaderboard');
+        const data = await response.json();
+        renderLeaderboard(data);
+    } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        leaderboardList.innerHTML = '<li style="text-align:center; padding: 20px; color: #ff4444;">无法加载排行榜</li>';
+    }
+}
+
+function renderLeaderboard(scores) {
+    leaderboardList.innerHTML = '';
+    
+    if (!scores || scores.length === 0) {
+        leaderboardList.innerHTML = '<li style="text-align:center; padding: 20px; color: #888;">暂无记录，快来抢占第一名！</li>';
+        return;
+    }
+
+    scores.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = 'leaderboard-item';
+        
+        let rankDisplay = '<span class="rank">' + (index + 1) + '.</span>';
+        if (index === 0) rankDisplay = '<span class="rank" style="font-size: 1.2em;">👑</span>';
+        else if (index === 1) rankDisplay = '<span class="rank" style="font-size: 1.1em;">🥈</span>';
+        else if (index === 2) rankDisplay = '<span class="rank" style="font-size: 1.1em;">🥉</span>';
+
+        // Safe HTML insertion
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'player-name';
+        nameSpan.textContent = item.name || 'Anonymous';
+
+        li.innerHTML = `
+            <div class="rank-name">
+                ${rankDisplay}
+            </div>
+            <span class="player-score">${item.score}</span>
+        `;
+        // Insert name safely
+        li.querySelector('.rank-name').appendChild(nameSpan);
+        
+        leaderboardList.appendChild(li);
+    });
+}
+
+async function submitScore() {
+    const name = playerNameInput.value.trim();
+    if (!name) {
+        alert('请输入你的名字！');
+        return;
+    }
+    
+    if (score <= 0) {
+        alert('得分为 0 不能提交哦！');
+        return;
+    }
+
+    try {
+        submitScoreBtn.disabled = true;
+        submitScoreBtn.textContent = '提交中...';
+
+        const response = await fetch('/api/snake/score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                score: score
+            })
+        });
+
+        if (!response.ok) throw new Error('Failed to submit score');
+        
+        const result = await response.json();
+        
+        // Refresh leaderboard
+        await fetchLeaderboard();
+        
+        // Hide input section
+        submitScoreSection.style.display = 'none';
+        
+        alert('提交成功！你目前的排名是：第 ' + result.rank + ' 名');
+        
+    } catch (error) {
+        console.error('Error submitting score:', error);
+        alert('提交失败，请检查网络连接');
+    } finally {
+        submitScoreBtn.disabled = false;
+        submitScoreBtn.textContent = '提交';
+    }
+}
+
+// Event Listeners for Leaderboard
+viewLeaderboardBtn.addEventListener('click', () => {
+    leaderboardModal.classList.add('show');
+    submitScoreSection.style.display = 'none'; // Viewing mode
+    fetchLeaderboard();
+});
+
+closeModalBtn.addEventListener('click', () => {
+    leaderboardModal.classList.remove('show');
+});
+
+// Close modal when clicking outside
+leaderboardModal.addEventListener('click', (e) => {
+    if (e.target === leaderboardModal) {
+        leaderboardModal.classList.remove('show');
+    }
+});
+
+submitScoreBtn.addEventListener('click', submitScore);
+
+// Allow Enter key to submit
+playerNameInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        submitScore();
+    }
+});
