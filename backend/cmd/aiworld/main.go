@@ -7,6 +7,7 @@ import (
 	"aiworld/backend/services/notes"
 	"aiworld/backend/services/snake"
 	"aiworld/backend/services/tetris"
+	"aiworld/backend/services/shooter"
 	"log"
 	"net/http"
 	"os"
@@ -25,6 +26,7 @@ func main() {
 	chat.Init()
 	notes.Init()
 	tetris.Init()
+	shooter.Init()
 
 	r := gin.Default()
 
@@ -38,7 +40,7 @@ func main() {
 	r.GET("/api/hello", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Hello from AI World!",
-			"version": "0.6.0",
+			"version": "0.7.0",
 		})
 	})
 
@@ -47,6 +49,7 @@ func main() {
 	chat.RegisterRoutes(r)
 	notes.RegisterRoutes(r)
 	tetris.RegisterRoutes(r)
+	shooter.RegisterRoutes(r)
 
 	frontendPath := getFrontendPath()
 	log.Printf("Serving frontend from: %s", frontendPath)
