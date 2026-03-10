@@ -147,8 +147,10 @@ function onWindowResize() {
 document.addEventListener('DOMContentLoaded', () => {
     initThreeJS();
     
-    const pingCard = document.getElementById('pingCard');
+    const logoTitle = document.getElementById('logoTitle');
     const cards = document.querySelectorAll('.card');
+
+    console.log('App initialized, logoTitle:', logoTitle);
 
     function fadeOutCards() {
         cards.forEach(card => {
@@ -162,25 +164,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    pingCard.addEventListener('click', async () => {
-        pingCard.style.pointerEvents = 'none';
+    logoTitle.addEventListener('click', () => {
+        console.log('Logo clicked!');
+        logoTitle.style.pointerEvents = 'none';
         fadeOutCards();
         startParticleAnimation();
 
-        try {
-            await fetch(`${API_BASE_URL}/api/ping`);
-            
-            setTimeout(() => {
-                stopParticleAnimation();
-                fadeInCards();
-                pingCard.style.pointerEvents = 'auto';
-            }, 2000);
-        } catch (error) {
-            setTimeout(() => {
-                stopParticleAnimation();
-                fadeInCards();
-                pingCard.style.pointerEvents = 'auto';
-            }, 2000);
-        }
+        setTimeout(() => {
+            stopParticleAnimation();
+            fadeInCards();
+            logoTitle.style.pointerEvents = 'auto';
+        }, 2000);
     });
+
+    logoTitle.style.cursor = 'pointer';
 });
