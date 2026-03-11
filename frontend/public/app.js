@@ -25,14 +25,14 @@ function initThreeJS() {
 }
 
 function createParticleSystem() {
-    const particleCount = 1000;
+    const particleCount = 2000;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
-    const sizes = new Float32Array(particleCount);
     
-    const color1 = new THREE.Color(0x00643C);
-    const color2 = new THREE.Color(0xE5E4E2);
+    const colorEmerald = new THREE.Color(0x00643C);
+    const colorLightGreen = new THREE.Color(0x00C06C);
+    const colorWhite = new THREE.Color(0xE5E4E2);
     
     for (let i = 0; i < particleCount; i++) {
         const i3 = i * 3;
@@ -45,18 +45,24 @@ function createParticleSystem() {
         positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
         positions[i3 + 2] = radius * Math.cos(phi);
         
-        const color = color1.clone().lerp(color2, Math.random());
+        let color;
+        const rand = Math.random();
+        if (rand < 0.45) {
+            color = colorEmerald;
+        } else if (rand < 0.90) {
+            color = colorLightGreen;
+        } else {
+            color = colorWhite;
+        }
         colors[i3] = color.r;
         colors[i3 + 1] = color.g;
         colors[i3 + 2] = color.b;
-        
-        sizes[i] = Math.random() * 2 + 0.5;
     }
     
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
     
+    // 创建粒子纹理
     const canvas = document.createElement('canvas');
     canvas.width = 64;
     canvas.height = 64;
@@ -92,14 +98,32 @@ function createParticleSystem() {
 function startParticleAnimation() {
     if (!particleSystem) return;
     
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
+    
     const container = document.getElementById('three-container');
     container.classList.add('active');
+    
+    const tabsContainer = document.querySelector('.tabs-container');
+    if (tabsContainer) {
+        tabsContainer.style.opacity = '0';
+        tabsContainer.style.visibility = 'hidden';
+        tabsContainer.style.transform = 'scale(0.8)';
+        tabsContainer.style.transition = 'all 0.3s ease';
+    }
     
     particlesActive = true;
     particleSystem.visible = true;
     
-    const animate = () => {
-        if (!particlesActive) return;
+    renderer.render(scene, camera);
+    
+    function animate() {
+        if (!particlesActive) {
+            animationId = null;
+            return;
+        }
         
         animationId = requestAnimationFrame(animate);
         
@@ -121,21 +145,37 @@ function startParticleAnimation() {
         
         particleSystem.geometry.attributes.position.needsUpdate = true;
         renderer.render(scene, camera);
-    };
+    }
     
     animate();
 }
 
 function stopParticleAnimation() {
     particlesActive = false;
+    
     if (animationId) {
         cancelAnimationFrame(animationId);
+        animationId = null;
     }
+    
     if (particleSystem) {
         particleSystem.visible = false;
     }
+    
     const container = document.getElementById('three-container');
     container.classList.remove('active');
+    
+    const tabsContainer = document.querySelector('.tabs-container');
+    if (tabsContainer) {
+        tabsContainer.style.opacity = '1';
+        tabsContainer.style.visibility = 'visible';
+        tabsContainer.style.transform = 'scale(1)';
+        tabsContainer.style.transition = 'all 0.3s ease';
+    }
+    
+    if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+    }
 }
 
 function onWindowResize() {
@@ -144,38 +184,73 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+// 初始化
+console.log('Initializing AI World particle effect...');
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM content loaded');
+    
     initThreeJS();
     
-    const logoTitle = document.getElementById('logoTitle');
+    const logo = document.querySelector('.logo');
     const cards = document.querySelectorAll('.card');
-
-    console.log('App initialized, logoTitle:', logoTitle);
-
+    
+    console.log('Logo element:', logo);
+    console.log('Cards found:', cards.length);
+    
     function fadeOutCards() {
         cards.forEach(card => {
             card.classList.add('fade-out');
         });
     }
-
+    
     function fadeInCards() {
         cards.forEach(card => {
             card.classList.remove('fade-out');
         });
     }
-
-    logoTitle.addEventListener('click', () => {
-        console.log('Logo clicked!');
-        logoTitle.style.pointerEvents = 'none';
-        fadeOutCards();
-        startParticleAnimation();
-
-        setTimeout(() => {
+    
+    let particleTimer;
+    
+    if (logo) {
+        console.log('Adding click event to logo...');
+        logo.addEventListener('click', (e) => {
+            e.stopPropagation();
+            console.log('Logo clicked! Particles active:', particlesActive);
+            
+            if (particlesActive) {
+                console.log('Stopping particle animation...');
+                stopParticleAnimation();
+                fadeInCards();
+                if (particleTimer) {
+                    clearTimeout(particleTimer);
+                    particleTimer = null;
+                }
+            } else {
+                console.log('Starting particle animation...');
+                fadeOutCards();
+                startParticleAnimation();
+                
+                particleTimer = setTimeout(() => {
+                    console.log('Auto-stopping particle animation...');
+                    stopParticleAnimation();
+                    fadeInCards();
+                    particleTimer = null;
+                }, 30000);
+            }
+        });
+    }
+    
+    document.addEventListener('click', (e) => {
+        if (particlesActive && e.target !== logo) {
+            console.log('Click outside logo, stopping particles...');
             stopParticleAnimation();
             fadeInCards();
-            logoTitle.style.pointerEvents = 'auto';
-        }, 2000);
+            if (particleTimer) {
+                clearTimeout(particleTimer);
+                particleTimer = null;
+            }
+        }
     });
-
-    logoTitle.style.cursor = 'pointer';
+    
+    console.log('Initialization complete!');
 });

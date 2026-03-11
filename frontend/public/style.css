@@ -26,6 +26,12 @@ body {
 
 #three-container.active {
     z-index: 9999;
+    pointer-events: none;
+}
+
+#logoTitle {
+    position: relative;
+    z-index: 10000;
     pointer-events: auto;
 }
 
@@ -39,7 +45,7 @@ body {
 
 .header {
     text-align: center;
-    margin-bottom: 60px;
+    margin-bottom: 20px;
     animation: fadeInDown 0.8s ease-out;
 }
 
@@ -63,6 +69,12 @@ body {
     display: inline-block;
     transition: all 0.3s ease;
     user-select: none;
+    position: relative;
+    z-index: 10000;
+    cursor: pointer;
+    padding: 20px;
+    background: transparent;
+    border-radius: 10px;
 }
 
 .logo:hover {
