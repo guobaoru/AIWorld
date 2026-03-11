@@ -350,7 +350,6 @@
                 </div>
 
                 <div class="controls-panel">
-                    <button class="btn btn-start" id="startWaveBtn">▶️ 开始波数</button>
                     <button class="btn btn-danger" id="sellModeBtn">🗑️ 出售模式</button>
                 </div>
                 <button class="btn" id="restartBtn">🔄 重新开始</button>
@@ -372,7 +371,7 @@
         const GRID_HEIGHT = 15;
         const INITIAL_GOLD = 100;
         const INITIAL_LIVES = 20;
-        const TOTAL_WAVES = 10;
+        const TOTAL_WAVES = 5;
 
         const TOWER_TYPES = {
             arrow: {
@@ -427,28 +426,28 @@
                 name: '小兵',
                 icon: '👾',
                 hp: 50,
-                speed: 1.5,
+                speed: 0.8,
                 reward: 10
             },
             fast: {
                 name: '疾风',
                 icon: '💨',
                 hp: 30,
-                speed: 3,
+                speed: 1.2,
                 reward: 15
             },
             tank: {
                 name: '重装',
                 icon: '🛡️',
                 hp: 150,
-                speed: 0.8,
+                speed: 0.5,
                 reward: 25
             },
             boss: {
                 name: 'BOSS',
                 icon: '👹',
                 hp: 500,
-                speed: 0.5,
+                speed: 0.4,
                 reward: 100
             }
         };
@@ -496,7 +495,6 @@
         const goldDisplay = document.getElementById('goldDisplay');
         const livesDisplay = document.getElementById('livesDisplay');
         const waveDisplay = document.getElementById('waveDisplay');
-        const startWaveBtn = document.getElementById('startWaveBtn');
         const sellModeBtn = document.getElementById('sellModeBtn');
         const restartBtn = document.getElementById('restartBtn');
         const gameOverlay = document.getElementById('gameOverlay');
@@ -572,19 +570,29 @@
 
         function generateWave(waveNum) {
             const enemies = [];
-            const baseCount = 5 + waveNum * 2;
+            let baseCount = 5 + waveNum * 2;
+            
+            if (waveNum === 3) {
+                baseCount *= 2;
+            }
 
             for (let i = 0; i < baseCount; i++) {
                 let type = 'basic';
                 const rand = Math.random();
 
-                if (waveNum >= 3 && rand < 0.3) type = 'fast';
-                if (waveNum >= 5 && rand < 0.2) type = 'tank';
-                if (waveNum === TOTAL_WAVES && i === baseCount - 1) type = 'boss';
-
+                if (waveNum >= 2 && rand < 0.3) type = 'fast';
+                if (waveNum >= 4 && rand < 0.2) type = 'tank';
+                
                 enemies.push({
                     type,
                     delay: i * 800
+                });
+            }
+
+            if (waveNum === 5) {
+                enemies.push({
+                    type: 'boss',
+                    delay: baseCount * 800
                 });
             }
 
@@ -594,12 +602,17 @@
         function spawnEnemy(type) {
             const enemyData = ENEMY_TYPES[type];
             const waveMultiplier = 1 + (gameState.wave - 1) * 0.2;
+            let finalHp = Math.floor(enemyData.hp * waveMultiplier);
+
+            if (type === 'boss' && gameState.wave === 5) {
+                finalHp = ENEMY_TYPES.basic.hp * 10;
+            }
 
             gameState.enemies.push({
                 type,
                 icon: enemyData.icon,
-                hp: Math.floor(enemyData.hp * waveMultiplier),
-                maxHp: Math.floor(enemyData.hp * waveMultiplier),
+                hp: finalHp,
+                maxHp: finalHp,
                 speed: enemyData.speed,
                 baseSpeed: enemyData.speed,
                 reward: enemyData.reward,
@@ -617,7 +630,6 @@
 
             gameState.wave++;
             gameState.isWaveActive = true;
-            startWaveBtn.disabled = true;
             waveDisplay.textContent = `${gameState.wave} / ${TOTAL_WAVES}`;
 
             const waveEnemies = generateWave(gameState.wave);
@@ -814,10 +826,14 @@
 
             if (gameState.isWaveActive && gameState.enemies.length === 0) {
                 setTimeout(() => {
-                    if (gameState.enemies.length === 0) {
+                    if (gameState.enemies.length === 0 && !gameState.isGameOver) {
                         gameState.isWaveActive = false;
-                        if (gameState.wave < TOTAL_WAVES && !gameState.isGameOver) {
-                            startWaveBtn.disabled = false;
+                        if (gameState.wave < TOTAL_WAVES) {
+                            setTimeout(() => {
+                                if (!gameState.isGameOver) {
+                                    startWave();
+                                }
+                            }, 2000);
                         } else if (gameState.wave >= TOTAL_WAVES) {
                             showGameOver(true);
                         }
@@ -990,7 +1006,6 @@
         function showGameOver(won) {
             gameState.isGameOver = true;
             gameState.isWaveActive = false;
-            startWaveBtn.disabled = true;
 
             overlayTitle.textContent = won ? '🎉 恭喜通关！' : '💀 游戏结束';
             overlayMessage.textContent = won
@@ -1015,13 +1030,18 @@
             };
 
             gameOverlay.style.display = 'none';
-            startWaveBtn.disabled = false;
             sellModeBtn.style.background = '';
             waveDisplay.textContent = `0 / ${TOTAL_WAVES}`;
 
             towerItems.forEach(item => item.classList.remove('selected'));
 
             updateUI();
+
+            setTimeout(() => {
+                if (!gameState.isGameOver) {
+                    startWave();
+                }
+            }, 2000);
         }
 
         let mouseX = 0, mouseY = 0;
@@ -1064,8 +1084,6 @@
                 }
             });
         });
-
-        startWaveBtn.addEventListener('click', startWave);
 
         sellModeBtn.addEventListener('click', () => {
             gameState.isSellMode = !gameState.isSellMode;
