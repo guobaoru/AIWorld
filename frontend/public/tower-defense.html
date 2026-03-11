@@ -350,6 +350,7 @@
                 </div>
 
                 <div class="controls-panel">
+                    <button class="btn" id="pauseBtn">⏸️ 暂停</button>
                     <button class="btn btn-danger" id="sellModeBtn">🗑️ 出售模式</button>
                 </div>
                 <button class="btn" id="restartBtn">🔄 重新开始</button>
@@ -362,6 +363,14 @@
             <h2 id="overlayTitle">游戏结束</h2>
             <p id="overlayMessage"></p>
             <button id="playAgainBtn" class="btn">再玩一次</button>
+        </div>
+    </div>
+
+    <div class="game-overlay" id="pauseOverlay" style="display: none;">
+        <div class="overlay-content">
+            <h2 style="color: #ffaa00;">⏸️ 游戏暂停</h2>
+            <p style="color: #888; margin-bottom: 25px; font-size: 1rem;">点击继续按钮恢复游戏</p>
+            <button id="resumeBtn" class="btn">▶️ 继续游戏</button>
         </div>
     </div>
 
@@ -508,6 +517,7 @@
             isWaveActive: false,
             isGameOver: false,
             isSellMode: false,
+            isPaused: false,
             selectedTower: null,
             towers: [],
             enemies: [],
@@ -522,7 +532,10 @@
         const waveDisplay = document.getElementById('waveDisplay');
         const sellModeBtn = document.getElementById('sellModeBtn');
         const restartBtn = document.getElementById('restartBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resumeBtn = document.getElementById('resumeBtn');
         const gameOverlay = document.getElementById('gameOverlay');
+        const pauseOverlay = document.getElementById('pauseOverlay');
         const overlayTitle = document.getElementById('overlayTitle');
         const overlayMessage = document.getElementById('overlayMessage');
         const playAgainBtn = document.getElementById('playAgainBtn');
@@ -587,23 +600,88 @@
                         ctx.fillStyle = roadGrad;
                         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
 
-                        ctx.fillStyle = '#8B4513';
-                        ctx.fillRect(px + 8, py + 15, 24, 20);
-                        
-                        ctx.fillStyle = '#A0522D';
+                        const houseCx = px + TILE_SIZE / 2;
+                        const houseCy = py + TILE_SIZE / 2;
+
+                        const houseGrad = ctx.createLinearGradient(houseCx - 20, houseCy - 15, houseCx + 20, houseCy + 15);
+                        houseGrad.addColorStop(0, '#A0522D');
+                        houseGrad.addColorStop(0.5, '#8B4513');
+                        houseGrad.addColorStop(1, '#6B3510');
+                        ctx.fillStyle = houseGrad;
+                        ctx.fillRect(houseCx - 18, houseCy - 8, 36, 26);
+
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                        ctx.fillRect(houseCx - 16, houseCy - 6, 32, 3);
+
+                        const roofGrad = ctx.createLinearGradient(houseCx, houseCy - 25, houseCx, houseCy - 8);
+                        roofGrad.addColorStop(0, '#CD5C5C');
+                        roofGrad.addColorStop(0.5, '#B22222');
+                        roofGrad.addColorStop(1, '#8B0000');
+                        ctx.fillStyle = roofGrad;
                         ctx.beginPath();
-                        ctx.moveTo(px + 4, py + 15);
-                        ctx.lineTo(px + 20, py + 5);
-                        ctx.lineTo(px + 36, py + 15);
+                        ctx.moveTo(houseCx - 24, houseCy - 8);
+                        ctx.lineTo(houseCx, houseCy - 26);
+                        ctx.lineTo(houseCx + 24, houseCy - 8);
                         ctx.closePath();
                         ctx.fill();
 
-                        ctx.fillStyle = '#654321';
-                        ctx.fillRect(px + 16, py + 25, 8, 10);
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                        ctx.beginPath();
+                        ctx.moveTo(houseCx - 5, houseCy - 10);
+                        ctx.lineTo(houseCx, houseCy - 22);
+                        ctx.lineTo(houseCx + 8, houseCy - 10);
+                        ctx.closePath();
+                        ctx.fill();
 
-                        ctx.fillStyle = '#4a3728';
-                        ctx.fillRect(px + 12, py + 18, 5, 5);
-                        ctx.fillRect(px + 23, py + 18, 5, 5);
+                        const doorGrad = ctx.createLinearGradient(houseCx - 5, houseCy - 2, houseCx + 5, houseCy + 18);
+                        doorGrad.addColorStop(0, '#654321');
+                        doorGrad.addColorStop(0.5, '#4a3728');
+                        doorGrad.addColorStop(1, '#3a2718');
+                        ctx.fillStyle = doorGrad;
+                        ctx.fillRect(houseCx - 6, houseCy, 12, 18);
+
+                        ctx.fillStyle = '#FFD700';
+                        ctx.beginPath();
+                        ctx.arc(houseCx + 4, houseCy + 9, 2, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        const windowGrad = ctx.createRadialGradient(houseCx - 10, houseCy - 3, 0, houseCx - 10, houseCy - 3, 4);
+                        windowGrad.addColorStop(0, '#87CEEB');
+                        windowGrad.addColorStop(1, '#4682B4');
+                        ctx.fillStyle = windowGrad;
+                        ctx.fillRect(houseCx - 14, houseCy - 6, 8, 8);
+                        ctx.strokeStyle = '#3a2718';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(houseCx - 14, houseCy - 6, 8, 8);
+                        ctx.beginPath();
+                        ctx.moveTo(houseCx - 14, houseCy - 2);
+                        ctx.lineTo(houseCx - 6, houseCy - 2);
+                        ctx.moveTo(houseCx - 10, houseCy - 6);
+                        ctx.lineTo(houseCx - 10, houseCy + 2);
+                        ctx.stroke();
+
+                        const windowGrad2 = ctx.createRadialGradient(houseCx + 10, houseCy - 3, 0, houseCx + 10, houseCy - 3, 4);
+                        windowGrad2.addColorStop(0, '#87CEEB');
+                        windowGrad2.addColorStop(1, '#4682B4');
+                        ctx.fillStyle = windowGrad2;
+                        ctx.fillRect(houseCx + 6, houseCy - 6, 8, 8);
+                        ctx.strokeRect(houseCx + 6, houseCy - 6, 8, 8);
+                        ctx.beginPath();
+                        ctx.moveTo(houseCx + 6, houseCy - 2);
+                        ctx.lineTo(houseCx + 14, houseCy - 2);
+                        ctx.moveTo(houseCx + 10, houseCy - 6);
+                        ctx.lineTo(houseCx + 10, houseCy + 2);
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#FFD700';
+                        ctx.shadowColor = 'rgba(255, 215, 0, 0.6)';
+                        ctx.shadowBlur = 8;
+                        ctx.font = 'bold 12px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('🏠', houseCx, houseCy - 30);
+                        ctx.shadowColor = 'transparent';
+                        ctx.shadowBlur = 0;
                     }
 
                     ctx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
@@ -1157,6 +1235,7 @@
                 isWaveActive: false,
                 isGameOver: false,
                 isSellMode: false,
+                isPaused: false,
                 selectedTower: null,
                 towers: [],
                 enemies: [],
@@ -1165,6 +1244,8 @@
             };
 
             gameOverlay.style.display = 'none';
+            pauseOverlay.style.display = 'none';
+            pauseBtn.textContent = '⏸️ 暂停';
             sellModeBtn.style.background = '';
             waveDisplay.textContent = `0 / ${TOTAL_WAVES}`;
 
@@ -1232,6 +1313,24 @@
         restartBtn.addEventListener('click', initGame);
         playAgainBtn.addEventListener('click', initGame);
 
+        pauseBtn.addEventListener('click', () => {
+            if (gameState.isGameOver) return;
+            gameState.isPaused = !gameState.isPaused;
+            if (gameState.isPaused) {
+                pauseBtn.textContent = '▶️ 继续';
+                pauseOverlay.style.display = 'flex';
+            } else {
+                pauseBtn.textContent = '⏸️ 暂停';
+                pauseOverlay.style.display = 'none';
+            }
+        });
+
+        resumeBtn.addEventListener('click', () => {
+            gameState.isPaused = false;
+            pauseBtn.textContent = '⏸️ 暂停';
+            pauseOverlay.style.display = 'none';
+        });
+
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1242,7 +1341,7 @@
             drawParticles();
             drawPlacementPreview(mouseX, mouseY);
 
-            if (!gameState.isGameOver) {
+            if (!gameState.isGameOver && !gameState.isPaused) {
                 updateTowers();
                 updateProjectiles();
                 updateEnemies();
