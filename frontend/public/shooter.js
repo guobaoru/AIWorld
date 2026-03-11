@@ -34,6 +34,8 @@ let player = {
     attackMode: 'normal'
 };
 
+let isSpacePressed = false;
+
 let bullets = [];
 let enemyBullets = [];
 let enemies = [];
@@ -150,7 +152,8 @@ function drawBullets() {
             ctx.fillStyle = '#87CEEB';
             ctx.shadowBlur = 20;
             ctx.shadowColor = '#87CEEB';
-            ctx.fillRect(bullet.x, 0, bullet.width, CANVAS_HEIGHT);
+            // 从飞机前端发射，只绘制从飞机位置到顶部的激光
+            ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
         } else {
             ctx.fillStyle = '#ffff00';
             ctx.shadowBlur = 10;
@@ -589,6 +592,10 @@ function updateBullets() {
         if (bullet.type === 'laser') {
             // 激光跟随玩家战机移动
             bullet.x = player.x + player.width / 2 - bullet.width / 2;
+            bullet.y = 0;
+            bullet.height = player.y;
+            // 只有在空格键按下且当前攻击模式为激光时才保留激光
+            return isSpacePressed && currentAttackMode === 'laser';
         } else if (bullet.vx !== undefined) {
             bullet.x += bullet.vx;
             bullet.y += bullet.vy;
@@ -600,7 +607,7 @@ function updateBullets() {
         }
         
         if (bullet.type === 'laser') {
-            return true; // 激光一直存在
+            return isSpacePressed && currentAttackMode === 'laser';
         } else {
             return bullet.y > -bullet.height && bullet.y < CANVAS_HEIGHT + 10 && 
                    bullet.x > -bullet.width && bullet.x < CANVAS_WIDTH + bullet.width;
@@ -731,15 +738,21 @@ function checkCollisions() {
             switch (powerUp.letter) {
                 case 'A':
                     currentAttackMode = 'triple';
+                    // 移除激光
+                    bullets = bullets.filter(bullet => bullet.type !== 'laser');
                     break;
                 case 'B':
                     currentAttackMode = 'fan';
+                    // 移除激光
+                    bullets = bullets.filter(bullet => bullet.type !== 'laser');
                     break;
                 case 'C':
                     currentAttackMode = 'laser';
                     break;
                 case 'D':
                     currentAttackMode = 'tracking';
+                    // 移除激光
+                    bullets = bullets.filter(bullet => bullet.type !== 'laser');
                     break;
             }
             createExplosion(powerUp.x + powerUp.size / 2, powerUp.y + powerUp.size / 2, powerUp.color);
@@ -779,6 +792,8 @@ function handleInput() {
             
             switch (currentAttackMode) {
                 case 'triple':
+                    // 移除激光
+                    bullets = bullets.filter(bullet => bullet.type !== 'laser');
                     bullets.push({
                         x: centerX - BULLET_WIDTH / 2 - 15,
                         y: centerY,
@@ -802,6 +817,8 @@ function handleInput() {
                     });
                     break;
                 case 'fan':
+                    // 移除激光
+                    bullets = bullets.filter(bullet => bullet.type !== 'laser');
                     for (let i = -2; i <= 2; i++) {
                         const angle = -Math.PI / 2 + (i * (Math.PI / 3) / 4);
                         bullets.push({
@@ -816,16 +833,22 @@ function handleInput() {
                     }
                     break;
                 case 'laser':
-                    bullets.push({
-                        x: centerX - 20, // 宽度为当前的两倍
-                        y: 0,
-                        width: 40, // 宽度为当前的两倍
-                        height: CANVAS_HEIGHT,
-                        speed: 0, // 激光没有速率概念
-                        type: 'laser'
-                    });
+                    // 检查是否已经有激光存在
+                    const existingLaser = bullets.find(bullet => bullet.type === 'laser');
+                    if (!existingLaser) {
+                        bullets.push({
+                            x: centerX - 20, // 宽度为当前的两倍
+                            y: 0, // 从屏幕顶部开始
+                            width: 40, // 宽度为当前的两倍
+                            height: centerY, // 激光长度从屏幕顶部到飞机前端
+                            speed: 0, // 激光没有速率概念
+                            type: 'laser'
+                        });
+                    }
                     break;
                 case 'tracking':
+                    // 移除激光
+                    bullets = bullets.filter(bullet => bullet.type !== 'laser');
                     bullets.push({
                         x: centerX - BULLET_WIDTH / 2,
                         y: centerY,
@@ -838,6 +861,8 @@ function handleInput() {
                     });
                     break;
                 default:
+                    // 移除激光
+                    bullets = bullets.filter(bullet => bullet.type !== 'laser');
                     bullets.push({
                         x: centerX - BULLET_WIDTH / 2,
                         y: centerY,
@@ -985,6 +1010,10 @@ function togglePause() {
 document.addEventListener('keydown', (e) => {
     keys[e.key] = true;
     
+    if (e.key === ' ') {
+        isSpacePressed = true;
+    }
+    
     if (!isGameRunning && e.key === ' ') {
         startGame();
         return;
@@ -1000,6 +1029,12 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('keyup', (e) => {
     keys[e.key] = false;
+    
+    if (e.key === ' ') {
+        isSpacePressed = false;
+        // 松开空格时移除所有激光
+        bullets = bullets.filter(bullet => bullet.type !== 'laser');
+    }
 });
 
 startBtn.addEventListener('click', () => {
