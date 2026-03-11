@@ -476,6 +476,31 @@
             {x: 4, y: 11}, {x: 19, y: 11}
         ];
 
+        let PATH_LENGTHS = [];
+        let TOTAL_PATH_LENGTH = 0;
+
+        function initPathLengths() {
+            PATH_LENGTHS = [];
+            TOTAL_PATH_LENGTH = 0;
+            for (let i = 0; i < PATH_POINTS.length - 1; i++) {
+                const start = PATH_POINTS[i];
+                const end = PATH_POINTS[i + 1];
+                const dx = (end.x - start.x) * TILE_SIZE;
+                const dy = (end.y - start.y) * TILE_SIZE;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                PATH_LENGTHS.push(length);
+                TOTAL_PATH_LENGTH += length;
+            }
+        }
+
+        function getDistanceForProgress(progress) {
+            return progress * TOTAL_PATH_LENGTH;
+        }
+
+        function getProgressForDistance(distance) {
+            return Math.min(1, distance / TOTAL_PATH_LENGTH);
+        }
+
         let gameState = {
             gold: INITIAL_GOLD,
             lives: INITIAL_LIVES,
@@ -546,25 +571,28 @@
             }
         }
 
-        function getPathPosition(progress) {
-            const totalSegments = PATH_POINTS.length - 1;
-            const segmentProgress = progress * totalSegments;
-            const segmentIndex = Math.floor(segmentProgress);
-            const localProgress = segmentProgress - segmentIndex;
-
-            if (segmentIndex >= totalSegments) {
-                return {
-                    x: PATH_POINTS[PATH_POINTS.length - 1].x * TILE_SIZE + TILE_SIZE / 2,
-                    y: PATH_POINTS[PATH_POINTS.length - 1].y * TILE_SIZE + TILE_SIZE / 2
-                };
+        function getPathPosition(distance) {
+            let currentDistance = 0;
+            
+            for (let i = 0; i < PATH_POINTS.length - 1; i++) {
+                const segmentLength = PATH_LENGTHS[i];
+                if (currentDistance + segmentLength >= distance) {
+                    const localDistance = distance - currentDistance;
+                    const localProgress = localDistance / segmentLength;
+                    const start = PATH_POINTS[i];
+                    const end = PATH_POINTS[i + 1];
+                    return {
+                        x: (start.x + (end.x - start.x) * localProgress) * TILE_SIZE + TILE_SIZE / 2,
+                        y: (start.y + (end.y - start.y) * localProgress) * TILE_SIZE + TILE_SIZE / 2
+                    };
+                }
+                currentDistance += segmentLength;
             }
 
-            const start = PATH_POINTS[segmentIndex];
-            const end = PATH_POINTS[segmentIndex + 1];
-
+            const lastPoint = PATH_POINTS[PATH_POINTS.length - 1];
             return {
-                x: (start.x + (end.x - start.x) * localProgress) * TILE_SIZE + TILE_SIZE / 2,
-                y: (start.y + (end.y - start.y) * localProgress) * TILE_SIZE + TILE_SIZE / 2
+                x: lastPoint.x * TILE_SIZE + TILE_SIZE / 2,
+                y: lastPoint.y * TILE_SIZE + TILE_SIZE / 2
             };
         }
 
@@ -616,7 +644,7 @@
                 speed: enemyData.speed,
                 baseSpeed: enemyData.speed,
                 reward: enemyData.reward,
-                progress: 0,
+                distance: 0,
                 x: 0,
                 y: 0,
                 slowUntil: 0,
@@ -793,10 +821,9 @@
                     });
                 }
 
-                const totalPathLength = PATH_POINTS.length - 1;
-                enemy.progress += (enemy.speed / (totalPathLength * TILE_SIZE * 1.5));
+                enemy.distance += enemy.speed * 2;
 
-                const pos = getPathPosition(enemy.progress);
+                const pos = getPathPosition(enemy.distance);
                 enemy.x = pos.x;
                 enemy.y = pos.y;
 
@@ -816,7 +843,7 @@
                     updateUI();
                 }
 
-                if (enemy.progress >= 1) {
+                if (enemy.distance >= TOTAL_PATH_LENGTH) {
                     gameState.lives--;
                     gameState.enemies.splice(i, 1);
                     updateUI();
@@ -1015,6 +1042,8 @@
         }
 
         function initGame() {
+            initPathLengths();
+            
             gameState = {
                 gold: INITIAL_GOLD,
                 lives: INITIAL_LIVES,
