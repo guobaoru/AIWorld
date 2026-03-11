@@ -82,10 +82,11 @@
         }
 
         .sidebar {
-            width: 280px;
+            width: 300px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
+            padding: 5px;
         }
 
         .panel-title {
@@ -204,21 +205,22 @@
 
         .controls-panel {
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
 
         .btn {
             flex: 1;
-            padding: 12px 20px;
+            padding: 10px 12px;
             background: linear-gradient(135deg, #00643C, #008B5A);
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             color: #E5E4E2;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             font-weight: 600;
             font-family: 'Orbitron', sans-serif;
             cursor: pointer;
             transition: all 0.3s ease;
+            white-space: nowrap;
         }
 
         .btn:hover:not(:disabled) {
@@ -351,9 +353,11 @@
 
                 <div class="controls-panel">
                     <button class="btn" id="pauseBtn">⏸️ 暂停</button>
-                    <button class="btn btn-danger" id="sellModeBtn">🗑️ 出售模式</button>
+                    <button class="btn btn-danger" id="sellModeBtn">🗑️ 出售</button>
                 </div>
-                <button class="btn" id="restartBtn">🔄 重新开始</button>
+                <div class="controls-panel">
+                    <button class="btn" id="restartBtn">🔄 重新开始</button>
+                </div>
             </div>
         </div>
     </div>
