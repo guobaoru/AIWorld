@@ -18,6 +18,7 @@ const MAX_VELOCITY = 6;
 const MARIO_BASE_WIDTH = 28;
 const MARIO_BASE_HEIGHT = 32;
 const MARIO_SMALL_SCALE = 2 / 3;
+const MUSHROOM_EMERGE_SPEED = 2;
 
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
@@ -157,12 +158,28 @@ function parseLevel() {
     const wallY = groundY - 8 * TILE_SIZE;
     entities.push({ type: 'archway', x: wallX, y: wallY, width: TILE_SIZE * 5, height: TILE_SIZE * 8 });
 
-    let firstQuestion = null;
-    for (const e of entities) {
-        if (e.type !== 'question') continue;
-        if (!firstQuestion || e.x < firstQuestion.x) firstQuestion = e;
+    const questionBlocks = entities.filter(e => e.type === 'question').sort((a, b) => a.x - b.x);
+    questionBlocks.forEach(e => {
+        e.isMushroomBlock = false;
+    });
+    if (questionBlocks.length >= 4) {
+        questionBlocks[3].isMushroomBlock = true;
     }
-    if (firstQuestion) firstQuestion.isMushroomBlock = true;
+
+    const groundRow = LEVEL_MAP[LEVEL_MAP.length - 1];
+    const firstGapTile = groundRow.indexOf(' ');
+    if (firstGapTile > 0) {
+        const pipeWidthTiles = 2;
+        const pipeHeightTiles = 3;
+        const pipeXTile = Math.max(0, firstGapTile - 4);
+        entities.push({
+            type: 'pipe',
+            x: pipeXTile * TILE_SIZE,
+            y: groundY - pipeHeightTiles * TILE_SIZE,
+            width: pipeWidthTiles * TILE_SIZE,
+            height: pipeHeightTiles * TILE_SIZE
+        });
+    }
 }
 
 function drawMario() {
@@ -446,16 +463,19 @@ function drawEnemy(x, y, width, height, vx) {
 function drawMushrooms() {
     mushrooms.forEach(m => {
         const screenX = m.x - gameState.cameraX;
-        ctx.fillStyle = '#00A800';
+        ctx.fillStyle = '#FFD1AA';
+        ctx.fillRect(screenX + m.width * 0.3, m.y + m.height * 0.48, m.width * 0.4, m.height * 0.45);
+
+        ctx.fillStyle = '#E50000';
         ctx.beginPath();
-        ctx.ellipse(screenX + m.width / 2, m.y + m.height / 2, m.width / 2, m.height / 2.2, 0, 0, Math.PI * 2);
+        ctx.ellipse(screenX + m.width / 2, m.y + m.height * 0.42, m.width * 0.5, m.height * 0.35, 0, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
-        ctx.arc(screenX + m.width * 0.35, m.y + m.height * 0.4, 4, 0, Math.PI * 2);
-        ctx.arc(screenX + m.width * 0.65, m.y + m.height * 0.45, 4, 0, Math.PI * 2);
-        ctx.arc(screenX + m.width * 0.5, m.y + m.height * 0.25, 3.5, 0, Math.PI * 2);
+        ctx.arc(screenX + m.width * 0.35, m.y + m.height * 0.35, 4, 0, Math.PI * 2);
+        ctx.arc(screenX + m.width * 0.65, m.y + m.height * 0.4, 4, 0, Math.PI * 2);
+        ctx.arc(screenX + m.width * 0.5, m.y + m.height * 0.22, 3.5, 0, Math.PI * 2);
         ctx.fill();
     });
 }
@@ -758,19 +778,54 @@ function update() {
     });
 
     mushrooms.forEach((m, index) => {
+        if (m.state === 'emerging') {
+            m.y -= MUSHROOM_EMERGE_SPEED;
+            if (m.y <= m.emergeTargetY) {
+                m.y = m.emergeTargetY;
+                m.state = 'moving';
+                m.vx = m.spawnVx;
+                m.vy = 0;
+            }
+            return;
+        }
+
+        const prevX = m.x;
+        if (m.vx !== 0) {
+            m.x += m.vx;
+            entities.forEach(entity => {
+                if (entity.broken) return;
+                if (entity.type !== 'ground' && entity.type !== 'pipe' && entity.type !== 'brick') return;
+                if (!checkCollision(m, entity)) return;
+
+                if (m.vx > 0 && prevX + m.width <= entity.x) {
+                    m.x = entity.x - m.width;
+                    m.vx *= -1;
+                } else if (m.vx < 0 && prevX >= entity.x + entity.width) {
+                    m.x = entity.x + entity.width;
+                    m.vx *= -1;
+                }
+            });
+        }
+
         m.vy += GRAVITY;
         m.vy = Math.min(m.vy, MAX_VELOCITY);
 
-        m.x += m.vx;
-        m.y += m.vy;
-
+        const prevY = m.y;
         m.onGround = false;
-
+        m.y += m.vy;
         entities.forEach(entity => {
             if (entity.broken) return;
             if (entity.type !== 'ground' && entity.type !== 'pipe' && entity.type !== 'brick') return;
             if (!checkCollision(m, entity)) return;
-            handleMushroomSolidCollision(m, entity);
+
+            if (m.vy > 0 && prevY + m.height <= entity.y) {
+                m.y = entity.y - m.height;
+                m.vy = 0;
+                m.onGround = true;
+            } else if (m.vy < 0 && prevY >= entity.y + entity.height) {
+                m.y = entity.y + entity.height;
+                m.vy = 0;
+            }
         });
 
         if (checkCollision(mario, m)) {
@@ -917,16 +972,21 @@ function handleQuestionCollision(entity) {
         if (!entity.hit) {
             entity.hit = true;
             if (entity.isMushroomBlock) {
-                const enemySpeed = Math.abs(entities.find(e => e.type === 'enemy')?.vx || 1);
+                const enemySpeed = Math.abs(entities.find(e => e.type === 'enemy')?.vx || 1) * 0.5;
                 const size = 28;
+                const startY = entity.y + TILE_SIZE - size;
+                const targetY = entity.y - size;
                 mushrooms.push({
                     x: entity.x + (TILE_SIZE - size) / 2,
-                    y: entity.y - size,
+                    y: startY,
                     width: size,
                     height: size,
-                    vx: mario.facingRight ? enemySpeed : -enemySpeed,
+                    vx: 0,
                     vy: 0,
-                    onGround: false
+                    onGround: false,
+                    state: 'emerging',
+                    emergeTargetY: targetY,
+                    spawnVx: enemySpeed
                 });
                 createParticles(entity.x + TILE_SIZE / 2, entity.y, '#00A800', 10);
             } else {
@@ -956,7 +1016,7 @@ function handleEnemyCollision(entity) {
     
     if (mario.vy > 0 && marioBottom < entityTop + 15 && mario.y < entityTop) {
         entity.alive = false;
-        mario.vy = -8;
+        mario.vy = -8 / Math.sqrt(3);
         gameState.score += 100;
         scoreElement.textContent = gameState.score;
         createParticles(entity.x + entity.width / 2, entity.y + entity.height / 2, '#8B4513', 10);
