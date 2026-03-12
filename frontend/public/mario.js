@@ -19,6 +19,8 @@ const MARIO_BASE_WIDTH = 28;
 const MARIO_BASE_HEIGHT = 32;
 const MARIO_SMALL_SCALE = 2 / 3;
 const MUSHROOM_EMERGE_SPEED = 2;
+const MARIO_INVINCIBLE_MS = 1000;
+const MARIO_STAR_MS = 20000;
 
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
@@ -46,10 +48,25 @@ let mario = {
     onGround: false,
     facingRight: true,
     isBig: false,
+    invincibleUntil: 0,
+    starUntil: 0,
     isJumping: false,
     jumpCount: 0,
     maxJumps: 2
 };
+
+function nowMs() {
+    return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+}
+
+function isMarioInvincible() {
+    const t = nowMs();
+    return t < mario.invincibleUntil || t < mario.starUntil;
+}
+
+function isMarioStarActive() {
+    return nowMs() < mario.starUntil;
+}
 
 function setMarioScale(scale) {
     const bottom = mario.y + mario.height;
@@ -89,6 +106,7 @@ let entities = [];
 let particles = [];
 let floatingTexts = [];
 let mushrooms = [];
+let stars = [];
 let flagState = {
     x: 0,
     y: 0,
@@ -101,6 +119,7 @@ highScoreElement.textContent = gameState.highScore;
 function parseLevel() {
     entities = [];
     mushrooms = [];
+    stars = [];
     flagState = { x: 0, y: 0, falling: false, reachedBottom: false };
     
     for (let y = 0; y < LEVEL_MAP.length; y++) {
@@ -161,10 +180,10 @@ function parseLevel() {
     const questionBlocks = entities.filter(e => e.type === 'question').sort((a, b) => a.x - b.x);
     questionBlocks.forEach(e => {
         e.isMushroomBlock = false;
+        e.isStarBlock = false;
     });
-    if (questionBlocks.length >= 4) {
-        questionBlocks[3].isMushroomBlock = true;
-    }
+    if (questionBlocks.length >= 1) questionBlocks[0].isMushroomBlock = true;
+    if (questionBlocks.length >= 4) questionBlocks[3].isStarBlock = true;
 
     const groundRow = LEVEL_MAP[LEVEL_MAP.length - 1];
     const firstGapTile = groundRow.indexOf(' ');
@@ -185,6 +204,11 @@ function parseLevel() {
 function drawMario() {
     ctx.save();
     
+    if (isMarioInvincible()) {
+        const blinkOn = Math.floor(nowMs() / 80) % 2 === 0;
+        ctx.globalAlpha = blinkOn ? 0.25 : 1;
+    }
+
     const screenX = mario.x - gameState.cameraX;
     const scale = mario.height / MARIO_BASE_HEIGHT;
     
@@ -480,6 +504,32 @@ function drawMushrooms() {
     });
 }
 
+function drawStars() {
+    stars.forEach(s => {
+        const cx = s.x - gameState.cameraX + s.width / 2;
+        const cy = s.y + s.height / 2;
+        const outerR = s.width / 2;
+        const innerR = outerR * 0.45;
+
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+            const r = i % 2 === 0 ? outerR : innerR;
+            const a = -Math.PI / 2 + i * (Math.PI / 5);
+            const x = cx + Math.cos(a) * r;
+            const y = cy + Math.sin(a) * r;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#CCAA00';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    });
+}
+
 function drawFlagpole(x, y, width, height) {
     const screenX = x - gameState.cameraX;
     
@@ -754,7 +804,15 @@ function update() {
                     handleQuestionCollision(entity);
                     break;
                 case 'enemy':
-                    handleEnemyCollision(entity);
+                    if (isMarioStarActive()) {
+                        entity.alive = false;
+                        gameState.score += 100;
+                        scoreElement.textContent = gameState.score;
+                        createParticles(entity.x + entity.width / 2, entity.y + entity.height / 2, '#FFD700', 12);
+                        createFloatingText(entity.x + entity.width / 2, entity.y, '+100');
+                    } else {
+                        handleEnemyCollision(entity);
+                    }
                     break;
                 case 'flagpole':
                     handleFlagpoleCollision();
@@ -768,7 +826,7 @@ function update() {
             entity.x += entity.vx;
             
             entities.forEach(other => {
-                if (other !== entity && !other.broken && (other.type === 'ground' || other.type === 'pipe' || other.type === 'brick')) {
+                if (other !== entity && !other.broken && (other.type === 'ground' || other.type === 'pipe' || other.type === 'brick' || other.type === 'question')) {
                     if (checkCollision(entity, other)) {
                         entity.vx *= -1;
                     }
@@ -794,7 +852,7 @@ function update() {
             m.x += m.vx;
             entities.forEach(entity => {
                 if (entity.broken) return;
-                if (entity.type !== 'ground' && entity.type !== 'pipe' && entity.type !== 'brick') return;
+                if (entity.type !== 'ground' && entity.type !== 'pipe' && entity.type !== 'brick' && entity.type !== 'question') return;
                 if (!checkCollision(m, entity)) return;
 
                 if (m.vx > 0 && prevX + m.width <= entity.x) {
@@ -815,7 +873,7 @@ function update() {
         m.y += m.vy;
         entities.forEach(entity => {
             if (entity.broken) return;
-            if (entity.type !== 'ground' && entity.type !== 'pipe' && entity.type !== 'brick') return;
+            if (entity.type !== 'ground' && entity.type !== 'pipe' && entity.type !== 'brick' && entity.type !== 'question') return;
             if (!checkCollision(m, entity)) return;
 
             if (m.vy > 0 && prevY + m.height <= entity.y) {
@@ -834,6 +892,14 @@ function update() {
             }
             mushrooms.splice(index, 1);
             createParticles(m.x + m.width / 2, m.y + m.height / 2, '#00A800', 12);
+        }
+    });
+
+    stars.forEach((s, index) => {
+        if (checkCollision(mario, s)) {
+            mario.starUntil = nowMs() + MARIO_STAR_MS;
+            stars.splice(index, 1);
+            createParticles(s.x + s.width / 2, s.y + s.height / 2, '#FFD700', 16);
         }
     });
     
@@ -975,7 +1041,7 @@ function handleQuestionCollision(entity) {
                 const enemySpeed = Math.abs(entities.find(e => e.type === 'enemy')?.vx || 1) * 0.5;
                 const size = 28;
                 const startY = entity.y + TILE_SIZE - size;
-                const targetY = entity.y - size;
+                const targetY = entity.y - size - TILE_SIZE / 2;
                 mushrooms.push({
                     x: entity.x + (TILE_SIZE - size) / 2,
                     y: startY,
@@ -989,6 +1055,15 @@ function handleQuestionCollision(entity) {
                     spawnVx: enemySpeed
                 });
                 createParticles(entity.x + TILE_SIZE / 2, entity.y, '#00A800', 10);
+            } else if (entity.isStarBlock) {
+                const size = 28;
+                stars.push({
+                    x: entity.x + (TILE_SIZE - size) / 2,
+                    y: entity.y - size,
+                    width: size,
+                    height: size
+                });
+                createParticles(entity.x + TILE_SIZE / 2, entity.y, '#FFD700', 14);
             } else {
                 gameState.coins++;
                 gameState.score += 200;
@@ -1011,6 +1086,8 @@ function handleQuestionCollision(entity) {
 }
 
 function handleEnemyCollision(entity) {
+    if (isMarioInvincible()) return;
+
     const marioBottom = mario.y + mario.height;
     const entityTop = entity.y;
     
@@ -1022,7 +1099,12 @@ function handleEnemyCollision(entity) {
         createParticles(entity.x + entity.width / 2, entity.y + entity.height / 2, '#8B4513', 10);
         createFloatingText(entity.x + entity.width / 2, entity.y, '+100');
     } else {
-        loseLife();
+        if (mario.isBig) {
+            setMarioScale(MARIO_SMALL_SCALE);
+            mario.invincibleUntil = nowMs() + MARIO_INVINCIBLE_MS;
+        } else {
+            loseLife();
+        }
     }
 }
 
@@ -1066,6 +1148,8 @@ function resetMario() {
     mario.width = MARIO_BASE_WIDTH;
     mario.height = MARIO_BASE_HEIGHT;
     setMarioScale(MARIO_SMALL_SCALE);
+    mario.invincibleUntil = 0;
+    mario.starUntil = 0;
     mario.vx = 0;
     mario.vy = 0;
     gameState.cameraX = 0;
@@ -1158,6 +1242,7 @@ function draw() {
     });
     
     drawMushrooms();
+    drawStars();
     drawParticles();
     drawFloatingTexts();
     drawMario();
