@@ -99,7 +99,7 @@ const LEVEL_MAP = [
     '          ?B?B?                    B                                        BBB                    ',
     '                                      B                                       BBBB                   ',
     '                  E                   B    E                  E               BBBBB                  ',
-    'GGGGGGGGGGGGGGGGGGGGGGGGGGGG    GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGBBBBBBBBBBGGGGGGGGGG'
+    'GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGBBBBBBBBBBGGGGGGGGGG'
 ];
 
 let entities = [];
@@ -107,6 +107,7 @@ let particles = [];
 let floatingTexts = [];
 let mushrooms = [];
 let stars = [];
+let levelWidthPx = 0;
 let flagState = {
     x: 0,
     y: 0,
@@ -121,6 +122,8 @@ function parseLevel() {
     mushrooms = [];
     stars = [];
     flagState = { x: 0, y: 0, falling: false, reachedBottom: false };
+
+    levelWidthPx = (LEVEL_MAP[0]?.length || 0) * TILE_SIZE;
     
     for (let y = 0; y < LEVEL_MAP.length; y++) {
         for (let x = 0; x < LEVEL_MAP[y].length; x++) {
@@ -172,10 +175,10 @@ function parseLevel() {
     flagState.x = flagpoleX;
     flagState.y = flagpoleY;
     entities.push({ type: 'flagpole', x: flagpoleX, y: flagpoleY, width: TILE_SIZE, height: 10 * TILE_SIZE });
-    
-    const wallX = flagpoleX + 15 * TILE_SIZE;
-    const wallY = groundY - 8 * TILE_SIZE;
-    entities.push({ type: 'archway', x: wallX, y: wallY, width: TILE_SIZE * 5, height: TILE_SIZE * 8 });
+
+    const endwallX = flagpoleX + 4 * TILE_SIZE;
+    levelWidthPx = endwallX;
+    entities.push({ type: 'endwall', x: endwallX, y: 0, width: TILE_SIZE, height: CANVAS_HEIGHT });
 
     const questionBlocks = entities.filter(e => e.type === 'question').sort((a, b) => a.x - b.x);
     questionBlocks.forEach(e => {
@@ -786,7 +789,7 @@ function update() {
     if (mario.x < 0) mario.x = 0;
 
     mario.onGround = false;
-    
+
     entities.forEach(entity => {
         if (!entity.alive && entity.type === 'enemy') return;
         if (entity.broken) return;
@@ -802,6 +805,9 @@ function update() {
                     break;
                 case 'question':
                     handleQuestionCollision(entity);
+                    break;
+                case 'endwall':
+                    handleSolidCollision(entity);
                     break;
                 case 'enemy':
                     if (isMarioStarActive()) {
@@ -826,7 +832,7 @@ function update() {
             entity.x += entity.vx;
             
             entities.forEach(other => {
-                if (other !== entity && !other.broken && (other.type === 'ground' || other.type === 'pipe' || other.type === 'brick' || other.type === 'question')) {
+                if (other !== entity && !other.broken && (other.type === 'ground' || other.type === 'pipe' || other.type === 'brick' || other.type === 'question' || other.type === 'endwall')) {
                     if (checkCollision(entity, other)) {
                         entity.vx *= -1;
                     }
@@ -917,21 +923,9 @@ function update() {
         loseLife();
     }
 
-    let wallX = 0;
-    entities.forEach(entity => {
-        if (entity.type === 'archway') {
-            wallX = entity.x;
-        }
-    });
-    
     const targetCameraX = mario.x - CANVAS_WIDTH / 3;
-    const maxCameraX = wallX > 0 ? Math.max(0, wallX - CANVAS_WIDTH) : Infinity;
+    const maxCameraX = Math.max(0, levelWidthPx - CANVAS_WIDTH);
     gameState.cameraX = Math.max(0, Math.min(targetCameraX, maxCameraX));
-    
-    if (mario.x + mario.width > wallX && wallX > 0) {
-        mario.x = wallX - mario.width;
-        mario.vx = 0;
-    }
 }
 
 function handleSolidCollision(entity) {
@@ -1234,9 +1228,6 @@ function draw() {
                 break;
             case 'flagpole':
                 drawFlagpole(entity.x, entity.y, entity.width, entity.height);
-                break;
-            case 'archway':
-                drawArchway(entity.x, entity.y, entity.width, entity.height);
                 break;
         }
     });
