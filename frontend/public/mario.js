@@ -15,6 +15,9 @@ const CANVAS_HEIGHT = 416;
 const TILE_SIZE = 32;
 const GRAVITY = 0.5;
 const MAX_VELOCITY = 12;
+const MARIO_BASE_WIDTH = 28;
+const MARIO_BASE_HEIGHT = 32;
+const MARIO_SMALL_SCALE = 2 / 3;
 
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
@@ -33,8 +36,8 @@ let gameState = {
 let mario = {
     x: 50,
     y: 352,
-    width: 28,
-    height: 32,
+    width: MARIO_BASE_WIDTH,
+    height: MARIO_BASE_HEIGHT,
     vx: 0,
     vy: 0,
     speed: 3,
@@ -46,6 +49,16 @@ let mario = {
     jumpCount: 0,
     maxJumps: 2
 };
+
+function setMarioScale(scale) {
+    const bottom = mario.y + mario.height;
+    mario.width = Math.max(1, Math.round(MARIO_BASE_WIDTH * scale));
+    mario.height = Math.max(1, Math.round(MARIO_BASE_HEIGHT * scale));
+    mario.y = bottom - mario.height;
+    mario.isBig = scale === 1;
+}
+
+setMarioScale(MARIO_SMALL_SCALE);
 
 let keys = {
     left: false,
@@ -74,6 +87,7 @@ const LEVEL_MAP = [
 let entities = [];
 let particles = [];
 let floatingTexts = [];
+let mushrooms = [];
 let flagState = {
     x: 0,
     y: 0,
@@ -85,6 +99,7 @@ highScoreElement.textContent = gameState.highScore;
 
 function parseLevel() {
     entities = [];
+    mushrooms = [];
     flagState = { x: 0, y: 0, falling: false, reachedBottom: false };
     
     for (let y = 0; y < LEVEL_MAP.length; y++) {
@@ -141,17 +156,27 @@ function parseLevel() {
     const wallX = flagpoleX + 15 * TILE_SIZE;
     const wallY = groundY - 8 * TILE_SIZE;
     entities.push({ type: 'archway', x: wallX, y: wallY, width: TILE_SIZE * 5, height: TILE_SIZE * 8 });
+
+    let firstQuestion = null;
+    for (const e of entities) {
+        if (e.type !== 'question') continue;
+        if (!firstQuestion || e.x < firstQuestion.x) firstQuestion = e;
+    }
+    if (firstQuestion) firstQuestion.isMushroomBlock = true;
 }
 
 function drawMario() {
     ctx.save();
     
     const screenX = mario.x - gameState.cameraX;
+    const scale = mario.height / MARIO_BASE_HEIGHT;
+    
+    ctx.translate(screenX, mario.y);
+    ctx.scale(scale, scale);
     
     if (!mario.facingRight) {
-        ctx.translate(screenX + mario.width, 0);
+        ctx.translate(MARIO_BASE_WIDTH, 0);
         ctx.scale(-1, 1);
-        ctx.translate(-screenX, 0);
     }
 
     const hatPrimary = '#E50000';
@@ -169,19 +194,19 @@ function drawMario() {
     if (keys.space && !mario.onGround) {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
         ctx.beginPath();
-        ctx.moveTo(screenX + 14, mario.y - 18);
-        ctx.quadraticCurveTo(screenX - 8, mario.y - 5, screenX - 8, mario.y + 8);
-        ctx.lineTo(screenX + 36, mario.y + 8);
-        ctx.quadraticCurveTo(screenX + 36, mario.y - 5, screenX + 14, mario.y - 18);
+        ctx.moveTo(14, -18);
+        ctx.quadraticCurveTo(-8, -5, -8, 8);
+        ctx.lineTo(36, 8);
+        ctx.quadraticCurveTo(36, -5, 14, -18);
         ctx.closePath();
         ctx.fill();
         
         ctx.fillStyle = 'rgba(200, 200, 200, 0.8)';
         ctx.beginPath();
-        ctx.moveTo(screenX + 14, mario.y - 18);
-        ctx.quadraticCurveTo(screenX, mario.y - 8, screenX + 3, mario.y + 5);
-        ctx.lineTo(screenX + 25, mario.y + 5);
-        ctx.quadraticCurveTo(screenX + 28, mario.y - 8, screenX + 14, mario.y - 18);
+        ctx.moveTo(14, -18);
+        ctx.quadraticCurveTo(0, -8, 3, 5);
+        ctx.lineTo(25, 5);
+        ctx.quadraticCurveTo(28, -8, 14, -18);
         ctx.closePath();
         ctx.fill();
         
@@ -189,101 +214,101 @@ function drawMario() {
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(screenX + 14, mario.y - 18);
-        ctx.lineTo(screenX + 14, mario.y + 4);
+        ctx.moveTo(14, -18);
+        ctx.lineTo(14, 4);
         ctx.stroke();
     }
     
     ctx.fillStyle = hatPrimary;
     ctx.beginPath();
-    ctx.ellipse(screenX + 14, mario.y + 5, 14, 7, 0, 0, Math.PI * 2);
+    ctx.ellipse(14, 5, 14, 7, 0, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.fillStyle = hatSecondary;
     ctx.beginPath();
-    ctx.ellipse(screenX + 14, mario.y + 3, 12, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(14, 3, 12, 5, 0, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.fillStyle = skinPrimary;
     ctx.beginPath();
-    ctx.roundRect(screenX + 5, mario.y + 7, 18, 11, 3);
+    ctx.roundRect(5, 7, 18, 11, 3);
     ctx.fill();
     
     ctx.fillStyle = skinSecondary;
     ctx.beginPath();
-    ctx.roundRect(screenX + 6, mario.y + 8, 16, 4, 2);
+    ctx.roundRect(6, 8, 16, 4, 2);
     ctx.fill();
     
     ctx.fillStyle = '#000000';
     ctx.beginPath();
-    ctx.arc(screenX + 17, mario.y + 11, 2.5, 0, Math.PI * 2);
+    ctx.arc(17, 11, 2.5, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
-    ctx.arc(screenX + 17.5, mario.y + 10.5, 1, 0, Math.PI * 2);
+    ctx.arc(17.5, 10.5, 1, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.fillStyle = '#6B3A10';
     ctx.beginPath();
-    ctx.roundRect(screenX + 13, mario.y + 15, 7, 3, 1);
+    ctx.roundRect(13, 15, 7, 3, 1);
     ctx.fill();
     
     ctx.fillStyle = shirtPrimary;
     ctx.beginPath();
-    ctx.roundRect(screenX + 3, mario.y + 17, 22, 11, 3);
+    ctx.roundRect(3, 17, 22, 11, 3);
     ctx.fill();
     
     ctx.fillStyle = overallPrimary;
     ctx.beginPath();
-    ctx.roundRect(screenX + 5, mario.y + 21, 18, 13, 2);
+    ctx.roundRect(5, 21, 18, 13, 2);
     ctx.fill();
     
     ctx.fillStyle = overallSecondary;
     ctx.beginPath();
-    ctx.roundRect(screenX + 6, mario.y + 22, 16, 4, 1);
+    ctx.roundRect(6, 22, 16, 4, 1);
     ctx.fill();
     
     ctx.fillStyle = '#FFD700';
     ctx.beginPath();
-    ctx.arc(screenX + 10, mario.y + 25, 2.5, 0, Math.PI * 2);
-    ctx.arc(screenX + 18, mario.y + 25, 2.5, 0, Math.PI * 2);
+    ctx.arc(10, 25, 2.5, 0, Math.PI * 2);
+    ctx.arc(18, 25, 2.5, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.fillStyle = '#FFA500';
     ctx.beginPath();
-    ctx.arc(screenX + 10, mario.y + 24.5, 1.5, 0, Math.PI * 2);
-    ctx.arc(screenX + 18, mario.y + 24.5, 1.5, 0, Math.PI * 2);
+    ctx.arc(10, 24.5, 1.5, 0, Math.PI * 2);
+    ctx.arc(18, 24.5, 1.5, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.fillStyle = overallPrimary;
     ctx.beginPath();
-    ctx.roundRect(screenX + 1, mario.y + 31, 11, 5, 2);
-    ctx.roundRect(screenX + 16, mario.y + 31, 11, 5, 2);
+    ctx.roundRect(1, 31, 11, 5, 2);
+    ctx.roundRect(16, 31, 11, 5, 2);
     ctx.fill();
     
     ctx.fillStyle = shoePrimary;
     ctx.beginPath();
-    ctx.roundRect(screenX - 1, mario.y + 33, 14, 6, 3);
-    ctx.roundRect(screenX + 15, mario.y + 33, 14, 6, 3);
+    ctx.roundRect(-1, 33, 14, 6, 3);
+    ctx.roundRect(15, 33, 14, 6, 3);
     ctx.fill();
     
     ctx.fillStyle = shoeSecondary;
     ctx.beginPath();
-    ctx.roundRect(screenX - 1, mario.y + 35, 14, 4, 2);
-    ctx.roundRect(screenX + 15, mario.y + 35, 14, 4, 2);
+    ctx.roundRect(-1, 35, 14, 4, 2);
+    ctx.roundRect(15, 35, 14, 4, 2);
     ctx.fill();
     
     ctx.fillStyle = glovePrimary;
     ctx.beginPath();
-    ctx.roundRect(screenX - 2, mario.y + 19, 6, 7, 2);
-    ctx.roundRect(screenX + 24, mario.y + 19, 6, 7, 2);
+    ctx.roundRect(-2, 19, 6, 7, 2);
+    ctx.roundRect(24, 19, 6, 7, 2);
     ctx.fill();
     
     ctx.fillStyle = gloveSecondary;
     ctx.beginPath();
-    ctx.roundRect(screenX - 1, mario.y + 19, 4, 3, 1);
-    ctx.roundRect(screenX + 25, mario.y + 19, 4, 3, 1);
+    ctx.roundRect(-1, 19, 4, 3, 1);
+    ctx.roundRect(25, 19, 4, 3, 1);
     ctx.fill();
     
     ctx.restore();
@@ -416,6 +441,23 @@ function drawEnemy(x, y, width, height, vx) {
     ctx.arc(screenX + width / 4, y + height - 3, 5, 0, Math.PI * 2);
     ctx.arc(screenX + width * 3 / 4, y + height - 3, 5, 0, Math.PI * 2);
     ctx.fill();
+}
+
+function drawMushrooms() {
+    mushrooms.forEach(m => {
+        const screenX = m.x - gameState.cameraX;
+        ctx.fillStyle = '#00A800';
+        ctx.beginPath();
+        ctx.ellipse(screenX + m.width / 2, m.y + m.height / 2, m.width / 2, m.height / 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(screenX + m.width * 0.35, m.y + m.height * 0.4, 4, 0, Math.PI * 2);
+        ctx.arc(screenX + m.width * 0.65, m.y + m.height * 0.45, 4, 0, Math.PI * 2);
+        ctx.arc(screenX + m.width * 0.5, m.y + m.height * 0.25, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+    });
 }
 
 function drawFlagpole(x, y, width, height) {
@@ -714,6 +756,31 @@ function update() {
             });
         }
     });
+
+    mushrooms.forEach((m, index) => {
+        m.vy += GRAVITY;
+        m.vy = Math.min(m.vy, MAX_VELOCITY);
+
+        m.x += m.vx;
+        m.y += m.vy;
+
+        m.onGround = false;
+
+        entities.forEach(entity => {
+            if (entity.broken) return;
+            if (entity.type !== 'ground' && entity.type !== 'pipe' && entity.type !== 'brick') return;
+            if (!checkCollision(m, entity)) return;
+            handleMushroomSolidCollision(m, entity);
+        });
+
+        if (checkCollision(mario, m)) {
+            if (!mario.isBig) {
+                setMarioScale(1);
+            }
+            mushrooms.splice(index, 1);
+            createParticles(m.x + m.width / 2, m.y + m.height / 2, '#00A800', 12);
+        }
+    });
     
     if (flagState.falling && !flagState.reachedBottom) {
         flagState.y += 3;
@@ -781,6 +848,39 @@ function handleSolidCollision(entity) {
     }
 }
 
+function handleMushroomSolidCollision(m, entity) {
+    const mBottom = m.y + m.height;
+    const mTop = m.y;
+    const mLeft = m.x;
+    const mRight = m.x + m.width;
+    const eBottom = entity.y + entity.height;
+    const eTop = entity.y;
+    const eLeft = entity.x;
+    const eRight = entity.x + entity.width;
+
+    const overlapBottom = mBottom - eTop;
+    const overlapTop = eBottom - mTop;
+    const overlapLeft = mRight - eLeft;
+    const overlapRight = eRight - mLeft;
+
+    const minOverlap = Math.min(overlapBottom, overlapTop, overlapLeft, overlapRight);
+
+    if (minOverlap === overlapBottom && m.vy >= 0) {
+        m.y = eTop - m.height;
+        m.vy = 0;
+        m.onGround = true;
+    } else if (minOverlap === overlapTop && m.vy < 0) {
+        m.y = eBottom;
+        m.vy = 0;
+    } else if (minOverlap === overlapLeft) {
+        m.x = eLeft - m.width;
+        m.vx *= -1;
+    } else if (minOverlap === overlapRight) {
+        m.x = eRight;
+        m.vx *= -1;
+    }
+}
+
 function handleBrickCollision(entity) {
     const marioBottom = mario.y + mario.height;
     const marioTop = mario.y;
@@ -816,19 +916,34 @@ function handleQuestionCollision(entity) {
         
         if (!entity.hit) {
             entity.hit = true;
-            gameState.coins++;
-            gameState.score += 200;
-            
-            if (gameState.coins % 10 === 0 && gameState.lives < 99) {
-                gameState.lives++;
-                livesElement.textContent = gameState.lives;
-                createFloatingText(entity.x + TILE_SIZE / 2, entity.y - 20, '1-UP!');
+            if (entity.isMushroomBlock) {
+                const enemySpeed = Math.abs(entities.find(e => e.type === 'enemy')?.vx || 1);
+                const size = 28;
+                mushrooms.push({
+                    x: entity.x + (TILE_SIZE - size) / 2,
+                    y: entity.y - size,
+                    width: size,
+                    height: size,
+                    vx: mario.facingRight ? enemySpeed : -enemySpeed,
+                    vy: 0,
+                    onGround: false
+                });
+                createParticles(entity.x + TILE_SIZE / 2, entity.y, '#00A800', 10);
+            } else {
+                gameState.coins++;
+                gameState.score += 200;
+                
+                if (gameState.coins % 10 === 0 && gameState.lives < 99) {
+                    gameState.lives++;
+                    livesElement.textContent = gameState.lives;
+                    createFloatingText(entity.x + TILE_SIZE / 2, entity.y - 20, '1-UP!');
+                }
+                
+                coinsElement.textContent = gameState.coins;
+                scoreElement.textContent = gameState.score;
+                createParticles(entity.x + TILE_SIZE / 2, entity.y + TILE_SIZE, '#FFD700', 8);
+                createFloatingText(entity.x + TILE_SIZE / 2, entity.y, '+200');
             }
-            
-            coinsElement.textContent = gameState.coins;
-            scoreElement.textContent = gameState.score;
-            createParticles(entity.x + TILE_SIZE / 2, entity.y + TILE_SIZE, '#FFD700', 8);
-            createFloatingText(entity.x + TILE_SIZE / 2, entity.y, '+200');
         }
     } else {
         handleSolidCollision(entity);
@@ -888,6 +1003,9 @@ function loseLife() {
 function resetMario() {
     mario.x = 50;
     mario.y = 352;
+    mario.width = MARIO_BASE_WIDTH;
+    mario.height = MARIO_BASE_HEIGHT;
+    setMarioScale(MARIO_SMALL_SCALE);
     mario.vx = 0;
     mario.vy = 0;
     gameState.cameraX = 0;
@@ -979,6 +1097,7 @@ function draw() {
         }
     });
     
+    drawMushrooms();
     drawParticles();
     drawFloatingTexts();
     drawMario();
