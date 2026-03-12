@@ -13,8 +13,8 @@ const startBtn = document.getElementById('startBtn');
 const CANVAS_WIDTH = 768;
 const CANVAS_HEIGHT = 416;
 const TILE_SIZE = 32;
-const GRAVITY = 0.5;
-const MAX_VELOCITY = 12;
+const GRAVITY = 0.125;
+const MAX_VELOCITY = 6;
 const MARIO_BASE_WIDTH = 28;
 const MARIO_BASE_HEIGHT = 32;
 const MARIO_SMALL_SCALE = 2 / 3;
@@ -41,7 +41,7 @@ let mario = {
     vx: 0,
     vy: 0,
     speed: 3,
-    jumpForce: -12,
+    jumpForce: -6,
     onGround: false,
     facingRight: true,
     isBig: false,
